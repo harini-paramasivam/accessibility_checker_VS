@@ -21,11 +21,10 @@ from app.services.pdf_preflight import (
 
 logger = logging.getLogger(__name__)
 
-# All installed Tesseract language packs for the probe OCR pass.
-_PROBE_OCR_LANGUAGES = (
-    "eng+spa+fra+deu+chi_sim+chi_tra+rus+ara+kor"
-    "+ben+pol+heb+yid+hat+hin+ita+por+jpn"
-)
+# Fast, memory-efficient languages for the probe OCR pass.
+# Loading all 18 Tesseract language packs simultaneously consumes >500MB RAM
+# and triggers OOM kills on low-resource environments (e.g. Render Free Tier).
+_PROBE_OCR_LANGUAGES = "eng+spa+fra+deu"
 
 # Text-based language detection sampling tiers.
 _TEXT_DETECT_SAMPLE_TIERS = (
