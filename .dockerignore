@@ -1,25 +1,52 @@
 .git
+.github
 .gitignore
+.claude
 .env
 .env.*
 !.env.example
-.claude
 
+# Documentation & coverage
+docs
+*.md
+!backend/README.md
+
+# Application data & local databases
 data
 backend/data
+backend/debug
+*.db
+*.sqlite
+*.sqlite3
 
+# Python virtual envs & caches
+.venv
 backend/.venv
-backend/.pytest_cache
-backend/.ruff_cache
+__pycache__
 backend/__pycache__
-backend/**/*.pyc
-backend/**/*.pyo
-backend/**/*.pyd
+backend/**/__pycache__
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache
+backend/.pytest_cache
+.ruff_cache
+backend/.ruff_cache
+
+# Large test files & sample PDFs
 backend/tests
 backend/scripts
-backend/test_*.pdf
+*.pdf
+backend/*.pdf
+test_*.pdf
 
+# Node / Frontend build artifacts & caches
+node_modules
 frontend/node_modules
 frontend/dist
+.npm
+.bun
 
+# OS temporary files
 **/.DS_Store
+Thumbs.db
