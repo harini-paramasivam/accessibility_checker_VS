@@ -361,7 +361,7 @@ async def _probe_ocr_detect(pdf_path: Path) -> str | None:
                 probe_input,
                 probe_output,
                 language=_PROBE_OCR_LANGUAGES,
-                timeout_seconds=30,
+                timeout_seconds=int(_PROBE_OCR_TIMEOUT_SECONDS),
             )
             if not ocr_result.success:
                 logger.debug("Probe OCR failed: %s", ocr_result.message)
@@ -475,6 +475,7 @@ async def classify_pdf(pdf_path: Path) -> ClassificationResult:
         pdf_path.name,
         result.type,
         result.pages_with_text,
+        result.total_pages,
         len(result.pages_needing_ocr),
         result.detected_language,
     )
