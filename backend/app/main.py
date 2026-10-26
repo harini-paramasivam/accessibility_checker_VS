@@ -76,7 +76,7 @@ _CSRF_HEADER_NAME = "x-csrf-token"
 _PUBLIC_IDENTITY_PATHS = frozenset({"/health", "/health/ready"})
 _FRONTEND_HASHED_ASSET_CACHE_CONTROL = "public, max-age=31536000, immutable"
 _FRONTEND_DOCUMENT_CACHE_CONTROL = "no-cache, must-revalidate"
-_FRONTEND_ROOT_ASSETS = frozenset({"/cuny-ai-lab-logo.png", "/favicon.svg"})
+_FRONTEND_ROOT_ASSETS = frozenset({"/velvora-logo.png", "/cuny-ai-lab-logo.png", "/favicon.svg"})
 
 
 def _is_frontend_asset_request(path: str) -> bool:
@@ -367,9 +367,9 @@ def create_app(frontend_dist_dir: Path | None = None) -> FastAPI:
         logger.info("Shutdown complete")
 
     app = FastAPI(
-        title="PDF Accessibility",
-        description="PDF accessibility remediation pipeline",
-        version="0.1.0",
+        title="AccessFix PDF by Velvora Solutions",
+        description="Enterprise PDF/UA accessibility and automated remediation platform",
+        version="2.0.0",
         lifespan=lifespan,
     )
 

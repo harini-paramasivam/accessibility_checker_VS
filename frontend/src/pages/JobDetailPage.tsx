@@ -160,6 +160,7 @@ export default function JobDetailPage() {
             appliedChangeCount={appliedChangeCount}
             reviewTaskCount={followUpCount}
             blockingIssueCount={job.status === "manual_remediation" ? blockingIssueCount : null}
+            tasks={openReviewTasks}
             reviewContextStatus={reviewContextStatus}
           />
 
@@ -265,7 +266,7 @@ export default function JobDetailPage() {
                     </p>
                   </div>
 
-                  <ValidationReport report={validationReport} />
+                  <ValidationReport report={validationReport} jobId={job.id} />
                 </div>
               )}
             </div>

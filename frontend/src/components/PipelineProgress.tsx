@@ -45,10 +45,42 @@ interface PipelineProgressProps {
 
 export default function PipelineProgress({ steps }: PipelineProgressProps) {
   return (
-    <div className="space-y-1">
+    <div className="space-y-2">
       {steps.map((step, i) => {
         const meta = STEP_META[step.step_name];
         const isLast = i === steps.length - 1;
+        const result = step.result as Record<string, any> | undefined;
+
+        // Resolve explicit outcome for OCR and other steps
+        const outcome = (
+          result?.outcome ||
+          (step.status === "complete"
+            ? "completed"
+            : step.status === "failed"
+              ? "failed"
+              : step.status === "skipped"
+                ? "skipped"
+                : step.status)
+        ) as string;
+
+        const reason = result?.reason as string | undefined;
+        const pagesProcessed = Array.isArray(result?.pages_processed)
+          ? (result?.pages_processed as number[])
+          : null;
+        const pagesSkipped = Array.isArray(result?.pages_skipped)
+          ? (result?.pages_skipped as number[])
+          : null;
+        const pagesFailed = Array.isArray(result?.pages_failed)
+          ? (result?.pages_failed as number[])
+          : null;
+        const engineError = (result?.engine_error || (step.status === "failed" ? step.error : null)) as string | null;
+
+        const isRunning = step.status === "running";
+        const isCompleted = outcome === "completed" || (step.status === "complete" && outcome !== "partially_completed" && outcome !== "needs_review");
+        const isPartial = outcome === "partially_completed";
+        const isReview = outcome === "needs_review";
+        const isSkipped = outcome === "skipped" || step.status === "skipped";
+        const isFailed = outcome === "failed" || step.status === "failed";
 
         return (
           <div key={step.step_name} className="flex items-start gap-4">
@@ -57,25 +89,40 @@ export default function PipelineProgress({ steps }: PipelineProgressProps) {
               <div
                 className={`
                   w-10 h-10 rounded-xl flex items-center justify-center
-                  transition-all duration-300
+                  transition-all duration-300 shrink-0
                   ${
-                    step.status === "complete"
-                      ? "bg-success text-white shadow-sm"
-                      : step.status === "running"
-                        ? "bg-accent-bright text-white shadow-md animate-pulse-soft"
-                        : step.status === "failed"
-                          ? "bg-error text-white shadow-sm"
-                          : step.status === "skipped"
-                            ? "bg-paper-warm text-ink-muted"
-                            : "bg-paper-warm text-ink-muted/50"
+                    isFailed
+                      ? "bg-red-600 text-white shadow-sm"
+                      : isRunning
+                        ? "bg-purple-600 text-white shadow-md animate-pulse-soft"
+                        : isPartial
+                          ? "bg-purple-500 text-white shadow-sm"
+                          : isReview
+                            ? "bg-amber-500 text-white shadow-sm"
+                            : isCompleted
+                              ? "bg-emerald-600 text-white shadow-sm"
+                              : isSkipped
+                                ? "bg-slate-100 text-slate-500 border border-slate-200"
+                                : "bg-slate-100 text-slate-400"
                   }
                 `}
               >
-                {step.status === "complete" ? (
+                {isCompleted ? (
                   <CheckIcon size={16} />
-                ) : step.status === "failed" ? (
+                ) : isFailed ? (
                   <XIcon size={16} />
-                ) : step.status === "skipped" ? (
+                ) : isPartial ? (
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10" />
+                    <path d="M12 6v6l4 2" />
+                  </svg>
+                ) : isReview ? (
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                    <line x1="12" y1="9" x2="12" y2="13" />
+                    <line x1="12" y1="17" x2="12.01" y2="17" />
+                  </svg>
+                ) : isSkipped ? (
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M5 4h4l5 8-5 8H5l5-8z" />
                     <path d="M13 4h4l5 8-5 8h-4l5-8z" />
@@ -89,48 +136,102 @@ export default function PipelineProgress({ steps }: PipelineProgressProps) {
               {!isLast && (
                 <div
                   className={`
-                    w-0.5 h-6 rounded-full mt-1
-                    ${step.status === "complete" ? "bg-success/30" : "bg-ink/8"}
+                    w-0.5 h-full min-h-6 rounded-full my-1
+                    ${isCompleted ? "bg-emerald-500/30" : "bg-slate-200"}
                   `}
                 />
               )}
             </div>
 
             {/* Content */}
-            <div className="pt-2 pb-4 min-w-0 flex-1">
-              <div className="flex items-center gap-2">
+            <div className="pt-1 pb-4 min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
                 <h4
                   className={`
                     text-sm font-semibold
                     ${
-                      step.status === "running"
-                        ? "text-accent"
-                        : step.status === "complete"
-                          ? "text-ink"
-                          : step.status === "failed"
-                            ? "text-error"
-                            : "text-ink-muted"
+                      isRunning
+                        ? "text-purple-600"
+                        : isFailed
+                          ? "text-red-700"
+                          : isCompleted
+                            ? "text-slate-900"
+                            : "text-slate-700"
                     }
                   `}
                 >
                   {meta.label}
                 </h4>
-                {step.status === "running" && (
-                  <div className="flex gap-0.5">
-                    <span className="w-1 h-1 rounded-full bg-accent-bright animate-pulse-soft" style={{ animationDelay: "0ms" }} />
-                    <span className="w-1 h-1 rounded-full bg-accent-bright animate-pulse-soft" style={{ animationDelay: "200ms" }} />
-                    <span className="w-1 h-1 rounded-full bg-accent-bright animate-pulse-soft" style={{ animationDelay: "400ms" }} />
+
+                {isRunning && (
+                  <div className="flex gap-0.5 items-center">
+                    <span className="w-1.5 h-1.5 rounded-full bg-purple-600 animate-pulse-soft" style={{ animationDelay: "0ms" }} />
+                    <span className="w-1.5 h-1.5 rounded-full bg-purple-600 animate-pulse-soft" style={{ animationDelay: "200ms" }} />
+                    <span className="w-1.5 h-1.5 rounded-full bg-purple-600 animate-pulse-soft" style={{ animationDelay: "400ms" }} />
                   </div>
                 )}
-                {step.status === "skipped" && (
-                  <span className="text-xs text-ink-muted bg-paper-warm px-2 py-0.5 rounded-full">
+
+                {/* Outcome Badges */}
+                {isCompleted && (
+                  <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                    <CheckIcon size={10} /> Completed
+                  </span>
+                )}
+                {isPartial && (
+                  <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-purple-700 bg-purple-50 border border-purple-200 px-2 py-0.5 rounded-full">
+                    Partially completed
+                  </span>
+                )}
+                {isReview && (
+                  <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
+                    Needs review
+                  </span>
+                )}
+                {isSkipped && (
+                  <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-600 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-full">
                     Skipped
                   </span>
                 )}
+                {isFailed && (
+                  <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-red-700 bg-red-50 border border-red-200 px-2 py-0.5 rounded-full">
+                    <XIcon size={10} /> Failed
+                  </span>
+                )}
               </div>
-              <p className="text-xs text-ink-muted mt-0.5">
-                {step.error || meta.description}
+
+              {/* Description & Decision Reason */}
+              <p className="text-xs text-slate-600 mt-1 leading-relaxed">
+                {reason || (step.status === "failed" && step.error) || meta.description}
               </p>
+
+              {/* Page-level metrics breakdown */}
+              {(pagesProcessed !== null || pagesSkipped !== null || pagesFailed !== null) && (
+                <div className="flex flex-wrap items-center gap-2 mt-2 text-[11px]">
+                  {pagesProcessed !== null && (
+                    <span className={`px-2 py-0.5 rounded-md font-medium border ${pagesProcessed.length > 0 ? "bg-emerald-50 text-emerald-800 border-emerald-200" : "bg-slate-50 text-slate-500 border-slate-200"}`}>
+                      Processed: <strong className="font-bold">{pagesProcessed.length}</strong> {pagesProcessed.length > 0 ? `(p. ${pagesProcessed.join(", ")})` : ""}
+                    </span>
+                  )}
+                  {pagesSkipped !== null && (
+                    <span className={`px-2 py-0.5 rounded-md font-medium border ${pagesSkipped.length > 0 ? "bg-slate-100 text-slate-700 border-slate-200" : "bg-slate-50 text-slate-500 border-slate-200"}`}>
+                      Skipped: <strong className="font-bold">{pagesSkipped.length}</strong> {pagesSkipped.length > 0 ? `(p. ${pagesSkipped.join(", ")})` : ""}
+                    </span>
+                  )}
+                  {pagesFailed !== null && pagesFailed.length > 0 && (
+                    <span className="px-2 py-0.5 rounded-md font-medium bg-red-50 text-red-700 border border-red-200">
+                      Failed: <strong className="font-bold">{pagesFailed.length}</strong> (p. {pagesFailed.join(", ")})
+                    </span>
+                  )}
+                </div>
+              )}
+
+              {/* Engine error notification */}
+              {engineError && (
+                <div className="mt-2 p-2.5 rounded-lg bg-red-50/80 border border-red-200/80 text-xs text-red-800 font-mono break-words leading-relaxed">
+                  <span className="font-bold font-sans block text-red-900 mb-0.5">OCR Engine Diagnostic:</span>
+                  {engineError}
+                </div>
+              )}
             </div>
           </div>
         );

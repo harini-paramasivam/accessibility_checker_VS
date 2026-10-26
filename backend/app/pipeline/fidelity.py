@@ -307,6 +307,54 @@ def _extract_pdf_text_sample(path: Path) -> str:
     return _normalize_text(text)[:TEXT_SAMPLE_MAX_CHARS]
 
 
+def _extract_per_page_text(path: Path, max_pages: int = 100) -> dict[int, str]:
+    """Extract text separated by 1-based page number."""
+    pages_text: dict[int, str] = {}
+    try:
+        import pypdfium2 as pdfium
+        doc = pdfium.PdfDocument(path)
+        for pno in range(min(len(doc), max_pages)):
+            page = doc[pno]
+            textpage = page.get_textpage()
+            txt = textpage.get_text_range() or ""
+            pages_text[pno + 1] = " ".join(txt.split())
+        return pages_text
+    except Exception:
+        pass
+
+    try:
+        with _suppress_pdfminer_fontbbox_warning():
+            for pno in range(max_pages):
+                try:
+                    txt = extract_text(str(path), page_numbers=[pno])
+                    if not txt and pno > 0 and (pno + 1) not in pages_text:
+                        break
+                    pages_text[pno + 1] = " ".join(txt.split())
+                except Exception:
+                    break
+        return pages_text
+    except Exception:
+        return {}
+
+
+def _page_ocr_gibberish_ratio(text: str) -> float:
+    """Calculate noise or gibberish ratio in an extracted OCR text block."""
+    normalized = " ".join(str(text or "").split())
+    if not normalized or len(normalized) < 20:
+        return 0.0
+    replacement_count = normalized.count("\ufffd")
+    if replacement_count > 0:
+        return min(1.0, (replacement_count * 2) / len(normalized))
+    non_ws = len(normalized.replace(" ", ""))
+    if non_ws == 0:
+        return 0.0
+    alpha_count = sum(1 for c in normalized if c.isalnum())
+    alpha_ratio = alpha_count / non_ws
+    if alpha_ratio < 0.50:
+        return 1.0 - alpha_ratio
+    return 0.0
+
+
 def _meaningful_structure_element_count(structure_json: dict[str, Any]) -> int:
     elements = structure_json.get("elements", [])
     if not isinstance(elements, list):
@@ -1201,12 +1249,26 @@ def assess_fidelity(
 
     if classification == "scanned":
         ocr_metrics = _sample_visual_ink(input_pdf)
+        per_page_text = _extract_per_page_text(output_pdf)
         has_meaningful_ocr_text = len(output_text) >= SCANNED_TEXT_MIN_CHARS
         has_meaningful_structure = meaningful_structure_elements > 0
         sampled_pages = int(ocr_metrics.get("sampled_pages") or 0)
         visually_blank = ocr_metrics.get("visually_blank")
+        
+        pages_with_ocr = [p for p, txt in per_page_text.items() if len(txt.strip()) >= 15]
+        pages_missing_ocr = [p for p, txt in per_page_text.items() if len(txt.strip()) < 15]
+        pages_with_ocr_noise = [
+            p for p, txt in per_page_text.items()
+            if _page_ocr_gibberish_ratio(txt) >= 0.35
+        ]
+
         status = "pass"
-        message = "Scanned-document OCR produced usable text or structure."
+        message = (
+            f"Scanned-document OCR produced usable text across all {len(per_page_text)} pages "
+            f"({len(output_text)} characters extracted)."
+            if per_page_text
+            else "Scanned-document OCR produced usable text or structure."
+        )
 
         if sampled_pages == 0:
             status = "skip"
@@ -1233,6 +1295,51 @@ def assess_fidelity(
                 metadata={
                     "output_chars": len(output_text),
                     "meaningful_structure_elements": meaningful_structure_elements,
+                    "pages_with_ocr": pages_with_ocr,
+                    "pages_missing_ocr": pages_missing_ocr,
+                    **ocr_metrics,
+                },
+            )
+        elif len(pages_with_ocr) > 0 and len(pages_missing_ocr) > 0:
+            status = "fail"
+            missing_str = ", ".join(str(p) for p in sorted(pages_missing_ocr))
+            message = f"Incomplete OCR text coverage: {len(pages_missing_ocr)} of {len(per_page_text)} page(s) yielded no extractable text."
+            add_task(
+                "review:content_fidelity",
+                task_type="content_fidelity",
+                title="Verify incomplete OCR coverage",
+                detail=(
+                    f"OCR extracted text from {len(pages_with_ocr)} page(s), but page(s) {missing_str} "
+                    "yielded no readable text layer. Check whether content was skipped or unreadable."
+                ),
+                severity="high",
+                blocking=True,
+                metadata={
+                    "pages_to_check": sorted(pages_missing_ocr),
+                    "pages_with_ocr": sorted(pages_with_ocr),
+                    "per_page_chars": {p: len(txt) for p, txt in per_page_text.items()},
+                    "output_chars": len(output_text),
+                    **ocr_metrics,
+                },
+            )
+        elif pages_with_ocr_noise:
+            status = "warning"
+            noise_pages_str = ", ".join(str(p) for p in sorted(pages_with_ocr_noise))
+            message = f"Scanned document OCR produced high character noise on page(s): {noise_pages_str}."
+            add_task(
+                "review:content_fidelity",
+                task_type="content_fidelity",
+                title="Spot-check OCR recognition errors",
+                detail=(
+                    f"Page(s) {noise_pages_str} contain a high proportion of unrecognized characters or symbols. "
+                    "Spot-check text readability before distribution."
+                ),
+                severity="medium",
+                blocking=False,
+                metadata={
+                    "pages_to_check": sorted(pages_with_ocr_noise),
+                    "per_page_chars": {p: len(txt) for p, txt in per_page_text.items()},
+                    "output_chars": len(output_text),
                     **ocr_metrics,
                 },
             )
@@ -1254,6 +1361,7 @@ def assess_fidelity(
                 metadata={
                     "output_chars": len(output_text),
                     "meaningful_structure_elements": meaningful_structure_elements,
+                    "per_page_chars": {p: len(txt) for p, txt in per_page_text.items()},
                     **ocr_metrics,
                 },
             )
@@ -1266,6 +1374,10 @@ def assess_fidelity(
                 "metrics": {
                     "output_chars": len(output_text),
                     "meaningful_structure_elements": meaningful_structure_elements,
+                    "pages_verified": len(per_page_text),
+                    "pages_with_ocr": len(pages_with_ocr),
+                    "pages_missing_ocr": len(pages_missing_ocr),
+                    "per_page_chars": {p: len(txt) for p, txt in per_page_text.items()},
                     **ocr_metrics,
                 },
             }
@@ -2032,15 +2144,57 @@ def assess_fidelity(
         status = "warning"
     else:
         status = "pass"
+    unresolved_alt_entries = [
+        entry for entry in alt_entries
+        if isinstance(entry, dict) and (
+            entry.get("status") == "pending_review"
+            or (
+                entry.get("status") != "rejected"
+                and (
+                    not (entry.get("edited_text") or entry.get("generated_text"))
+                    or str(entry.get("generated_text") or "").strip().startswith("[")
+                )
+            )
+        )
+    ]
+    if unresolved_alt_entries:
+        unresolved_fig_indices = [
+            e.get("figure_index") for e in unresolved_alt_entries if isinstance(e.get("figure_index"), int)
+        ]
+        unresolved_pages = sorted({
+            figure_pages.get(idx) for idx in unresolved_fig_indices if isinstance(figure_pages.get(idx), int)
+        })
+        add_task(
+            "review:figure_alt_text_unresolved",
+            task_type="alt_text",
+            title="Unresolved Figure Alternative Text",
+            detail=(
+                f"{len(unresolved_alt_entries)} figure(s) could not be resolved automatically "
+                "or have placeholder descriptions. Provide descriptive alternative text before distribution."
+            ),
+            severity="high",
+            blocking=True,
+            metadata={
+                "unresolved_count": len(unresolved_alt_entries),
+                "figure_indices": unresolved_fig_indices,
+                "pages_to_check": unresolved_pages,
+            },
+        )
+
     checks.append(
         {
             "check": "alt_text_provenance",
-            "status": status,
-            "message": "Tracked whether approved alt text was human-edited, caption-backed, or machine-only.",
+            "status": "fail" if unresolved_alt_entries else status,
+            "message": (
+                f"{len(unresolved_alt_entries)} figure(s) require manual alternative text."
+                if unresolved_alt_entries
+                else "Tracked whether approved alt text was human-edited, caption-backed, or machine-only."
+            ),
             "metrics": {
+                "unresolved_alt": len(unresolved_alt_entries),
                 "machine_only_alt": machine_only_alt,
                 "caption_backed_alt": caption_backed_alt,
-                "reviewed_alt_entries": len(alt_entries),
+                "total_alt_entries": len(alt_entries),
             },
         }
     )

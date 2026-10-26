@@ -240,3 +240,30 @@ def test_assess_fidelity_flags_visual_meaning_gap(tmp_path):
         and bool(task["metadata"].get("visual_meaning_gap"))
         for task in review_tasks
     )
+
+
+def test_collect_missing_visual_figure_targets_skips_scanned_text_pages(tmp_path):
+    pdf_path = tmp_path / "scanned_checklist.pdf"
+    _build_dominant_image_pdf(pdf_path)
+
+    # Scanned checklist page with multiple short items (like Page 2 or Page 4 of OCR test)
+    elements = [
+        {"type": "heading", "page": 0, "bbox": {"l": 10, "b": 180, "r": 150, "t": 195}, "text": "Quality Checklist"},
+        {"type": "list_item", "page": 0, "bbox": {"l": 10, "b": 160, "r": 150, "t": 175}, "text": "[ ] Page count is correct"},
+        {"type": "list_item", "page": 0, "bbox": {"l": 10, "b": 140, "r": 150, "t": 155}, "text": "[ ] Text from each page is present"},
+        {"type": "list_item", "page": 0, "bbox": {"l": 10, "b": 120, "r": 150, "t": 135}, "text": "[ ] Headings remain in a logical order"},
+        {"type": "list_item", "page": 0, "bbox": {"l": 10, "b": 100, "r": 150, "t": 115}, "text": "[ ] Numbers and punctuation recognized"},
+        {"type": "list_item", "page": 0, "bbox": {"l": 10, "b": 80, "r": 150, "t": 95}, "text": "[ ] No page is silently skipped"},
+    ]
+    structure_json = {
+        "page_count": 1,
+        "elements": elements,
+    }
+
+    targets = collect_missing_visual_figure_targets(
+        working_pdf=pdf_path,
+        structure_json=structure_json,
+    )
+
+    assert targets == []
+

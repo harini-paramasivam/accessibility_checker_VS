@@ -14,6 +14,7 @@ interface OutcomeHeroProps {
   appliedChangeCount?: number;
   reviewTaskCount?: number;
   blockingIssueCount?: number | null;
+  tasks?: import("../types").ReviewTask[];
   reviewContextStatus?: "ready" | "loading" | "unavailable";
   error?: string;
 }
@@ -43,6 +44,7 @@ export default function OutcomeHero({
   appliedChangeCount = 0,
   reviewTaskCount = 0,
   blockingIssueCount = null,
+  tasks = [],
   reviewContextStatus = "ready",
   error,
 }: OutcomeHeroProps) {
@@ -160,6 +162,63 @@ export default function OutcomeHero({
               Download report
             </a>
           </div>
+
+          {/* Exact Unresolved Issues Breakdown */}
+          {tasks && tasks.length > 0 && (
+            <div className="mt-5 space-y-3 border-t border-warning/20 pt-4">
+              <h3 className="text-xs uppercase font-bold tracking-wider text-ink-muted">
+                Unresolved Attention Items ({tasks.length})
+              </h3>
+              <div className="space-y-2">
+                {tasks.map((task) => {
+                  const pages = Array.isArray(task.metadata?.pages_to_check)
+                    ? (task.metadata.pages_to_check as (number | string)[])
+                    : [];
+                  const pagesStr = pages.length > 0 ? `Page(s) ${pages.join(", ")}` : null;
+
+                  return (
+                    <div
+                      key={task.id}
+                      className={`p-3.5 rounded-xl border text-xs shadow-sm ${
+                        task.blocking
+                          ? "bg-white/90 border-error/30 text-ink"
+                          : "bg-white/70 border-amber-300/60 text-ink"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-bold text-slate-900 text-sm">{task.title}</span>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          {pagesStr && (
+                            <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-800 font-mono text-[10px] font-semibold">
+                              {pagesStr}
+                            </span>
+                          )}
+                          <span
+                            className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
+                              task.blocking
+                                ? "bg-red-100 text-red-800"
+                                : "bg-amber-100 text-amber-800"
+                            }`}
+                          >
+                            {task.severity || (task.blocking ? "High" : "Medium")}
+                          </span>
+                        </div>
+                      </div>
+                      {task.detail && (
+                        <p className="text-slate-600 mt-1 leading-relaxed">{task.detail}</p>
+                      )}
+                      <p className="text-[11px] text-accent font-medium mt-1.5">
+                        Recommended Action:{" "}
+                        {task.blocking
+                          ? "Review and resolve semantics in the Interactive Review tool or external PDF editor."
+                          : "Inspect and verify accuracy before final document distribution."}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

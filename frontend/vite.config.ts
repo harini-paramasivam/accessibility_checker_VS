@@ -3,7 +3,7 @@ import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
 const devProxyTarget =
-  process.env.VITE_DEV_PROXY_TARGET ?? "http://localhost:8001";
+  process.env.VITE_DEV_PROXY_TARGET ?? "http://localhost:8080";
 const appBasePath = normalizeBasePath(process.env.VITE_APP_BASE_PATH ?? "/");
 const appBasePrefix = appBasePath === "/" ? "" : appBasePath.slice(0, -1);
 

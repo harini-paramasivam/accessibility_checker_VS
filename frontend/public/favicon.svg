@@ -1,6 +1,16 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-  <rect x="3" y="4" width="26" height="4" rx="2" fill="#1B2A4A"/>
-  <rect x="5" y="10" width="22" height="4" rx="2" fill="#3B6BCC"/>
-  <rect x="2" y="16" width="20" height="4" rx="2" fill="#2DC4C4"/>
-  <rect x="4" y="22" width="24" height="4" rx="2" fill="#4A7FD4"/>
+  <defs>
+    <linearGradient id="velGoldFav" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#E9D5FF"/>
+      <stop offset="50%" stop-color="#C084FC"/>
+      <stop offset="100%" stop-color="#7C3AED"/>
+    </linearGradient>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0A1128"/>
+      <stop offset="100%" stop-color="#1E293B"/>
+    </linearGradient>
+  </defs>
+  <rect x="0" y="0" width="32" height="32" rx="8" fill="url(#bgGrad)"/>
+  <path d="M7 8 L16 25 L25 8 L20.5 8 L16 17 L11.5 8 Z" fill="url(#velGoldFav)"/>
+  <circle cx="16" cy="6" r="1.5" fill="#E9D5FF"/>
 </svg>

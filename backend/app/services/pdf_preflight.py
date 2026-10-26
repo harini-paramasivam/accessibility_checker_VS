@@ -246,7 +246,7 @@ def preflight_pdf_upload(path: Path, *, settings: Any) -> PdfUploadPreflightRepo
             "This PDF is too large or image-heavy for self-service processing: "
             + "; ".join(reasons)
             + ". Split it into smaller sections, downsample scan images, "
-            "or contact the CUNY AI Lab for assisted remediation.",
+            "or contact Velvora Solutions for enterprise assisted remediation.",
             report=report,
         )
 

@@ -1,8 +1,8 @@
-# PDF Accessibility App
+# AccessFix PDF — Velvora Solutions
 
-An automated PDF remediation tool from the [CUNY AI Lab](https://ailab.gc.cuny.edu/) that converts uploaded PDFs into accessible, PDF/UA-1 compliant documents.
+An enterprise automated PDF accessibility remediation engine from **Velvora Solutions** that converts uploaded PDFs into fully accessible, ISO 14289-1 (PDF/UA-1) and WCAG 2.1 AA compliant documents.
 
-Upload a PDF and the app classifies it, runs OCR if needed, extracts structure, generates alt text, writes PDF/UA tags, and validates the result against veraPDF. Documents that can't be fully remediated automatically are flagged for manual review.
+Upload a PDF and the engine classifies it, runs high-precision OCR if needed, extracts logical structure via Docling, generates intelligent alt text, embeds missing font programs, writes standard PDF/UA tag trees, and validates compliance with veraPDF. Document quality is monitored in real-time with an interactive PDF Tag Tree Inspector.
 
 ## Features
 

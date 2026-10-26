@@ -141,15 +141,16 @@ async def generate_alt_text(
         if not fig.path.exists():
             logger.warning(f"Figure {fig.index} image not found: {fig.path}")
             fallback = _caption_fallback(fig.caption)
-            generated_text = fallback or "[Image file not found]"
+            generated_text = fallback or None
+            status = "approved" if fallback else "pending_review"
             existing[fig.index] = AltTextResult(
                 figure_index=fig.index,
                 generated_text=generated_text,
-                status="approved",
+                status=status,
                 suggested_action="manual_only",
                 confidence="low",
-                summary="The image file was missing, so the app used the best available fallback.",
-                reason="The extracted figure image was not available during semantic analysis.",
+                summary="Requires manual description: figure image not found." if not fallback else "Used caption fallback.",
+                reason="The extracted figure image was not found. Manual review required." if not fallback else "Used caption fallback.",
                 used_caption_fallback=bool(fallback),
                 used_placeholder_fallback=not bool(fallback),
                 reviewable=True,
@@ -157,8 +158,8 @@ async def generate_alt_text(
                 remediation_intelligence={
                     "suggested_action": "manual_only",
                     "confidence": "low",
-                    "summary": "The image file was missing, so the app used the best available fallback.",
-                    "reason": "The extracted figure image was not available during semantic analysis.",
+                    "summary": "Requires manual description: figure image not found.",
+                    "reason": "The extracted figure image was not found on disk.",
                 },
             )
             continue
@@ -195,32 +196,41 @@ async def generate_alt_text(
             else:
                 text = str(adjudication.get("alt_text") or "").strip()
             used_caption_fallback = False
-            used_placeholder_fallback = False
             if not text:
                 fallback = _caption_fallback(fig.caption)
                 if fallback:
                     text = fallback
                     used_caption_fallback = True
+                    status = "rejected" if is_decorative else "approved"
                 else:
-                    text = "[Could not determine figure semantics]"
+                    text = ""
                     used_placeholder_fallback = True
+                    status = "pending_review"
+            else:
+                status = "rejected" if is_decorative else "approved"
+
             reviewable, importance = _figure_reviewability(
                 suggested_action=suggested_action or "manual_only",
-                confidence=confidence,
+                confidence="low" if used_placeholder_fallback else confidence,
                 used_caption_fallback=used_caption_fallback,
                 used_placeholder_fallback=used_placeholder_fallback,
                 is_decorative=is_decorative,
             )
-            logger.info(f"Generated alt text for figure {fig.index}: {text[:80]}...")
+            if used_placeholder_fallback:
+                reviewable = True
+                importance = "high"
+                suggested_action = "manual_only"
+
+            logger.info(f"Generated alt text for figure {fig.index}: status={status}, len={len(text)}")
             existing[fig.index] = AltTextResult(
                 figure_index=fig.index,
-                generated_text=text,
-                status="rejected" if is_decorative else "approved",
+                generated_text=text or None,
+                status=status,
                 resolved_kind=resolved_kind,
                 suggested_action=suggested_action or ("mark_decorative" if is_decorative else "set_alt_text"),
-                confidence=confidence,
-                summary=str(adjudication.get("summary") or "").strip(),
-                reason=str(adjudication.get("reason") or "").strip(),
+                confidence="low" if used_placeholder_fallback else confidence,
+                summary=str(adjudication.get("summary") or ("Requires manual description: figure semantics could not be determined automatically." if used_placeholder_fallback else "")).strip(),
+                reason=str(adjudication.get("reason") or ("Figure semantics could not be determined reliably. Manual review required." if used_placeholder_fallback else "")).strip(),
                 used_caption_fallback=used_caption_fallback,
                 used_placeholder_fallback=used_placeholder_fallback,
                 reviewable=reviewable,
@@ -230,16 +240,17 @@ async def generate_alt_text(
         except Exception as e:
             logger.error(f"Alt text generation failed for figure {fig.index}: {e}")
             fallback = _caption_fallback(fig.caption)
-            generated_text = fallback or f"[Generation failed: {e}]"
+            generated_text = fallback or None
+            status = "approved" if fallback else "pending_review"
             existing[fig.index] = AltTextResult(
                 figure_index=fig.index,
                 generated_text=generated_text,
-                status="approved",
+                status=status,
                 resolved_kind=None,
                 suggested_action="manual_only",
                 confidence="low",
-                summary="The app used a fallback because the semantic analysis failed.",
-                reason=f"Figure semantic analysis failed: {e}",
+                summary="Requires manual description: figure semantic analysis failed." if not fallback else "The app used caption fallback.",
+                reason=f"Figure semantic analysis failed: {e}. Manual review required." if not fallback else "Used caption fallback.",
                 used_caption_fallback=bool(fallback),
                 used_placeholder_fallback=not bool(fallback),
                 reviewable=True,
@@ -247,7 +258,7 @@ async def generate_alt_text(
                 remediation_intelligence={
                     "suggested_action": "manual_only",
                     "confidence": "low",
-                    "summary": "The app used a fallback because the semantic analysis failed.",
+                    "summary": "Requires manual description: figure semantic analysis failed.",
                     "reason": f"Figure semantic analysis failed: {e}",
                 },
             )
@@ -256,16 +267,17 @@ async def generate_alt_text(
         result = existing.get(fig.index)
         if result is None:
             fallback = _caption_fallback(fig.caption)
-            generated_text = fallback or "[Could not determine figure semantics]"
+            generated_text = fallback or None
+            status = "approved" if fallback else "pending_review"
             result = AltTextResult(
                 figure_index=fig.index,
                 generated_text=generated_text,
-                status="approved",
+                status=status,
                 resolved_kind=None,
                 suggested_action="manual_only",
                 confidence="low",
-                summary="The app used a fallback because no semantic decision was available.",
-                reason="No figure semantic decision was returned.",
+                summary="Requires manual description: no semantic decision was available." if not fallback else "The app used caption fallback.",
+                reason="No figure semantic decision was returned. Manual review required." if not fallback else "Used caption fallback.",
                 used_caption_fallback=bool(fallback),
                 used_placeholder_fallback=not bool(fallback),
                 reviewable=True,
@@ -273,7 +285,7 @@ async def generate_alt_text(
                 remediation_intelligence={
                     "suggested_action": "manual_only",
                     "confidence": "low",
-                    "summary": "The app used a fallback because no semantic decision was available.",
+                    "summary": "Requires manual description: no semantic decision was available.",
                     "reason": "No figure semantic decision was returned.",
                 },
             )

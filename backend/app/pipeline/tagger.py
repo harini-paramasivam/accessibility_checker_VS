@@ -501,17 +501,18 @@ def _normalize_heading_hierarchy(elements: list[dict]) -> None:
     first_level = _as_positive_int(sorted_headings[0].get("level", 1), default=1)
     shift = first_level - 1 if first_level > 1 else 0
 
-    previous_level = 1
-    for heading in sorted_headings:
+    previous_level = 0
+    for idx, heading in enumerate(sorted_headings):
         level = _as_positive_int(heading.get("level", 1), default=1)
         if shift:
             level = max(1, level - shift)
-        if previous_level == 1 and level > 1:
+        if idx == 0:
             level = 1
-        if level > previous_level + 1:
+        elif level > previous_level + 1:
             level = previous_level + 1
         heading["level"] = max(1, min(6, level))
         previous_level = heading["level"]
+
 
 
 def _visible_link_contents_from_page_elements(
@@ -2454,6 +2455,7 @@ class StructTreeBuilder:
         self._headings: list[dict] = []
         self._struct_elems_created = 0
         self._list_cache: dict[str, tuple[pikepdf.Object, pikepdf.Object | None]] = {}
+        self._lists_created = 0
         self._note_counter = 0
         self._table_counter = 0
         self._fragmented_table_cache: dict[int, dict[tuple[int, int], pikepdf.Object]] = {}
@@ -3144,6 +3146,7 @@ class StructTreeBuilder:
             list_elem["/P"] = attach_parent
             self._append_child(attach_parent, list_elem)
             self._struct_elems_created += 1
+            self._lists_created += 1
             if list_group_ref:
                 self._list_cache[list_group_ref] = (list_elem, None)
         _set_list_numbering_attr(list_elem, marker, enumerated=enumerated)
@@ -5526,8 +5529,6 @@ async def tag_pdf(
                             headings_tagged += 1
                         elif t == "table":
                             tables_tagged += 1
-                        elif t == "list_item":
-                            lists_tagged += 1
                 elif _should_artifact_nonsemantic_page_content(input_path, page, page_index):
                     _rewrite_content_stream(
                         pdf, page, page_index, [],
@@ -5550,6 +5551,7 @@ async def tag_pdf(
 
             # 5. Finalize structure tree
             builder.finalize()
+            lists_tagged = builder._lists_created if builder._lists_created > 0 else len(builder._list_cache)
 
             # 6. Add bookmarks from headings
             bookmarks_added = _add_bookmarks(

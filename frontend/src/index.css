@@ -1,41 +1,52 @@
 @import "tailwindcss";
 
 @theme {
-  /* Warm editorial palette */
-  --color-ink: #1e293b;
-  --color-ink-light: #334155;
-  --color-ink-muted: #475569;
-  --color-paper: #faf7f2;
-  --color-paper-warm: #f5f0e8;
-  --color-paper-cool: #f1f5f9;
-  --color-cream: #fefdfb;
+  /* Velvora Enterprise Palette */
+  --color-ink: #0F172A;
+  --color-ink-light: #1E293B;
+  --color-ink-muted: #64748B;
+  --color-paper: #F8FAFC;
+  --color-paper-warm: #F1F5F9;
+  --color-paper-cool: #E2E8F0;
+  --color-cream: #FFFFFF;
 
-  /* Amber accent system */
-  --color-accent: #b45309;
-  --color-accent-bright: #d97706;
-  --color-accent-light: #fef3c7;
-  --color-accent-glow: #fffbeb;
+  /* Velvora Purple & Lavender Accent System */
+  --color-accent: #7C3AED;
+  --color-accent-bright: #9333EA;
+  --color-accent-light: #F3E8FF;
+  --color-accent-glow: #FAF5FF;
 
-  /* Status colors */
+  /* Velvora Brand Direct Tokens */
+  --color-velvora-navy: #0A1128;
+  --color-velvora-charcoal: #0F172A;
+  --color-velvora-gold: #9333EA;
+  --color-velvora-gold-light: #F3E8FF;
+  --color-velvora-purple: #9333EA;
+  --color-velvora-lavender: #C084FC;
+  --color-velvora-silver: #94A3B8;
+
+  /* Semantic Status Colors */
   --color-success: #059669;
-  --color-success-light: #d1fae5;
-  --color-error: #dc2626;
-  --color-error-light: #fee2e2;
-  --color-warning: #d97706;
-  --color-warning-light: #fef3c7;
-  --color-info: #2563eb;
-  --color-info-light: #dbeafe;
+  --color-success-light: #ECFDF5;
+  --color-error: #DC2626;
+  --color-error-light: #FEF2F2;
+  --color-warning: #D97706;
+  --color-warning-light: #FFFBEB;
+  --color-info: #2563EB;
+  --color-info-light: #EFF6FF;
 
-  /* Typography */
-  --font-display: "Fraunces", "Georgia", serif;
-  --font-body: "Outfit", system-ui, sans-serif;
-  --font-mono: "JetBrains Mono", "Menlo", monospace;
+  /* Modern Enterprise Typography */
+  --font-display: "Outfit", "Inter", system-ui, sans-serif;
+  --font-body: "Inter", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", "SF Mono", monospace;
 
   /* Shadows */
-  --shadow-soft: 0 1px 3px rgba(30, 41, 59, 0.04), 0 4px 12px rgba(30, 41, 59, 0.06);
-  --shadow-card: 0 1px 2px rgba(30, 41, 59, 0.04), 0 2px 8px rgba(30, 41, 59, 0.06);
-  --shadow-lifted: 0 4px 16px rgba(30, 41, 59, 0.08), 0 8px 32px rgba(30, 41, 59, 0.06);
-  --shadow-glow: 0 0 0 3px rgba(217, 119, 6, 0.15);
+  --shadow-soft: 0 1px 3px rgba(10, 17, 40, 0.05), 0 4px 12px rgba(10, 17, 40, 0.04);
+  --shadow-card: 0 1px 3px rgba(10, 17, 40, 0.04), 0 4px 16px rgba(10, 17, 40, 0.06);
+  --shadow-lifted: 0 10px 25px -3px rgba(10, 17, 40, 0.08), 0 4px 6px -2px rgba(10, 17, 40, 0.04);
+  --shadow-glow: 0 0 0 3px rgba(168, 85, 247, 0.25);
+  --shadow-gold: 0 4px 20px rgba(147, 51, 234, 0.25);
+  --shadow-purple: 0 4px 20px rgba(147, 51, 234, 0.25);
 }
 
 /* Base */
@@ -59,35 +70,47 @@ body {
   line-height: 1.6;
 }
 
-/* Subtle paper texture */
-body::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  opacity: 0.02;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-  background-size: 256px 256px;
-  z-index: 0;
-}
-
-h1, h2, h3 {
+h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-display);
-  font-weight: 500;
-  line-height: 1.2;
-  letter-spacing: -0.01em;
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: -0.015em;
+  color: var(--color-ink);
 }
 
 :focus-visible {
   outline: 2px solid var(--color-accent-bright);
   outline-offset: 2px;
-  border-radius: 4px;
+  border-radius: 6px;
 }
 
-::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { background: var(--color-paper-warm); }
-::-webkit-scrollbar-thumb { background: var(--color-ink-muted); border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: var(--color-ink-light); }
+::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: #94A3B8; }
+
+/* Custom Enterprise Utility Classes */
+.gold-gradient-text,
+.purple-gradient-text,
+.lavender-gradient-text {
+  background: linear-gradient(135deg, #C084FC 0%, #9333EA 50%, #6B21A8 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.gold-gradient-bg,
+.purple-gradient-bg {
+  background: linear-gradient(135deg, #A855F7 0%, #7E22CE 100%);
+}
+
+.navy-gradient-bg {
+  background: linear-gradient(135deg, #0A1128 0%, #0F172A 50%, #1E293B 100%);
+}
+
+.gold-border,
+.purple-border {
+  border-color: rgba(168, 85, 247, 0.35);
+}
 
 /* Animations */
 @keyframes fade-in {
@@ -105,26 +128,16 @@ h1, h2, h3 {
   50% { opacity: 0.6; }
 }
 
-@keyframes shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
-}
-
-@keyframes spin-slow {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-
-.animate-fade-in { animation: fade-in 0.4s ease-out both; }
-.animate-slide-up { animation: slide-up 0.5s ease-out both; }
+.animate-fade-in { animation: fade-in 0.35s ease-out both; }
+.animate-slide-up { animation: slide-up 0.45s ease-out both; }
 .animate-pulse-soft { animation: pulse-soft 2s ease-in-out infinite; }
 
-.stagger > * { animation: fade-in 0.4s ease-out both; }
+.stagger > * { animation: fade-in 0.35s ease-out both; }
 .stagger > *:nth-child(1) { animation-delay: 0ms; }
-.stagger > *:nth-child(2) { animation-delay: 60ms; }
-.stagger > *:nth-child(3) { animation-delay: 120ms; }
-.stagger > *:nth-child(4) { animation-delay: 180ms; }
-.stagger > *:nth-child(5) { animation-delay: 240ms; }
-.stagger > *:nth-child(6) { animation-delay: 300ms; }
-.stagger > *:nth-child(7) { animation-delay: 360ms; }
-.stagger > *:nth-child(8) { animation-delay: 420ms; }
+.stagger > *:nth-child(2) { animation-delay: 50ms; }
+.stagger > *:nth-child(3) { animation-delay: 100ms; }
+.stagger > *:nth-child(4) { animation-delay: 150ms; }
+.stagger > *:nth-child(5) { animation-delay: 200ms; }
+.stagger > *:nth-child(6) { animation-delay: 250ms; }
+.stagger > *:nth-child(7) { animation-delay: 300ms; }
+.stagger > *:nth-child(8) { animation-delay: 350ms; }

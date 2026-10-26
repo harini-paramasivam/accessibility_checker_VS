@@ -259,6 +259,39 @@ def _extract_bbox(prov: list[dict]) -> dict | None:
     }
 
 
+def _infer_heading_level(item: dict, text: str, bbox: dict | None = None) -> int:
+    """Infer semantic heading level (1-6) using metadata, numbering, and typography."""
+    raw_level = item.get("level")
+    if isinstance(raw_level, int) and 1 <= raw_level <= 6:
+        return raw_level
+
+    cleaned = (text or "").strip()
+    if not cleaned:
+        return 2
+
+    # 1. Dot-separated section numbers: e.g. "1.2.3" -> level 3, "1.2" -> level 2
+    num_match = re.search(r"\b(\d+(?:\.\d+)+)\b", cleaned)
+    if num_match:
+        dot_count = num_match.group(1).count(".")
+        return min(6, max(2, 1 + dot_count))
+
+    # 2. Appendices: "Appendix A.1" -> level 3, "Appendix A" -> level 2
+    if re.search(r"\b(?:Appendix|Annex)\s+[A-Z]\.\d+\b", cleaned, re.IGNORECASE):
+        return 3
+    if re.search(r"\b(?:Appendix|Annex)\s+[A-Z]\b", cleaned, re.IGNORECASE):
+        return 2
+
+    # 3. Chapter / Part headers: "Chapter 1" -> level 1
+    if re.match(r"^(?:Chapter|Part)\s+\d+[:.]?", cleaned, re.IGNORECASE):
+        return 1
+
+    # 4. Standard section headers like "1. Introduction" or "2. Methods"
+    if re.match(r"^\d+\.\s+", cleaned):
+        return 2
+
+    return 2
+
+
 def _normalize_docling_elements(doc_dict: dict) -> list[dict]:
     """Convert Docling's rich document model into a flat elements array for the tagger.
 
@@ -304,8 +337,7 @@ def _normalize_docling_elements(doc_dict: dict) -> list[dict]:
             elements.append(elem_dict)
 
         elif label == "section_header":
-            level = item.get("level", 1)
-            level = max(1, min(6, level))
+            level = _infer_heading_level(item, text, bbox)
             elem_dict = {
                 "type": "heading",
                 "level": level,

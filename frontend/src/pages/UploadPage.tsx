@@ -6,13 +6,14 @@ import FileDropzone from "../components/FileDropzone";
 import { ArrowRightIcon, XIcon } from "../components/Icons";
 
 const PIPELINE_STEPS = [
-  { icon: "M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2", label: "Classify", desc: "Detect document type" },
-  { icon: "M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z", label: "OCR", desc: "Extract text from scans" },
-  { icon: "M3 3h18v18H3zM3 9h18M9 3v18", label: "Structure", desc: "Analyze layout" },
-  { icon: "M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z", label: "Alt Text", desc: "Describe images" },
-  { icon: "M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z", label: "Tag", desc: "Add PDF/UA tags" },
-  { icon: "M9 12l2 2 4-4m6 2a9 9 0 1 1-18 0 9 9 0 0 1 18 0z", label: "Validate", desc: "Check compliance" },
-  { icon: "M4 6h16M4 12h10M4 18h7", label: "Fidelity", desc: "Verify output quality" },
+  { icon: "M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2", label: "Classification", desc: "Digital stream vs scanned check" },
+  { icon: "M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z", label: "Smart OCR", desc: "OCR for scans / lossless for digital" },
+  { icon: "M3 3h18v18H3zM3 9h18M9 3v18", label: "Docling Structure", desc: "Layout & semantic segmentation" },
+  { icon: "M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z", label: "AI Alt-Text", desc: "Intelligent figure descriptions" },
+  { icon: "M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z", label: "PDF/UA Tag Tree", desc: "H1-H6, Tables, and Lists" },
+  { icon: "M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5", label: "Font Embed", desc: "ISO 7.21.4.1 font programs" },
+  { icon: "M9 12l2 2 4-4m6 2a9 9 0 1 1-18 0 9 9 0 0 1 18 0z", label: "veraPDF Engine", desc: "Automated ISO 14289 validation" },
+  { icon: "M4 6h16M4 12h10M4 18h7", label: "Fidelity Audit", desc: "Visual drift & text verification" },
 ];
 
 export default function UploadPage() {
@@ -48,100 +49,123 @@ export default function UploadPage() {
   };
 
   return (
-    <div className="animate-fade-in">
-      {/* Hero heading */}
-      <div className="text-center mb-10">
-        <h1 className="text-4xl md:text-5xl text-ink mb-3 tracking-tight">
-          Make PDFs accessible
+    <div className="animate-fade-in max-w-5xl mx-auto space-y-12">
+      {/* Enterprise Hero Header */}
+      <div className="text-center space-y-4">
+        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-900 border border-purple-500/30 text-purple-300 text-xs font-semibold tracking-wide shadow-sm">
+          <span className="w-2 h-2 rounded-full bg-purple-400 animate-pulse" />
+          Velvora Solutions · Automated PDF/UA Remediation Engine
+        </div>
+
+        <h1 className="text-3xl sm:text-4xl md:text-5xl font-display font-extrabold text-slate-900 tracking-tight leading-tight">
+          Enterprise PDF Accessibility <br className="hidden sm:inline" />
+          <span className="gold-gradient-text">Automated Remediation Platform</span>
         </h1>
-        <p className="text-lg text-ink-muted max-w-lg mx-auto leading-relaxed">
-          Upload a PDF and we'll analyze its structure, generate alt text
-          for images, add accessibility tags, and validate compliance.
+
+        <p className="text-base sm:text-lg text-slate-600 max-w-2xl mx-auto leading-relaxed">
+          Transform untagged, inaccessible PDFs into fully certified{" "}
+          <strong className="text-slate-900 font-semibold">ISO 14289-1 (PDF/UA-1)</strong> and{" "}
+          <strong className="text-slate-900 font-semibold">WCAG 2.1 AA</strong> compliant documents with
+          automated structural tagging, smart font embedding, and veraPDF verification.
         </p>
+
+        {/* Feature Badges */}
+        <div className="flex flex-wrap items-center justify-center gap-2 pt-2 text-xs font-medium text-slate-600">
+          <span className="px-3 py-1 rounded-md bg-white border border-slate-200 shadow-sm flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+            Logical Tag Tree (H1–H6, Tables, Lists)
+          </span>
+          <span className="px-3 py-1 rounded-md bg-white border border-slate-200 shadow-sm flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+            Smart Font Embedding (veraPDF 7.21.4.1)
+          </span>
+          <span className="px-3 py-1 rounded-md bg-white border border-slate-200 shadow-sm flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-purple-500" />
+            AI-Assisted Alt Text
+          </span>
+          <span className="px-3 py-1 rounded-md bg-white border border-slate-200 shadow-sm flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+            Interactive Structure Inspector
+          </span>
+        </div>
       </div>
 
-      {/* Dropzone */}
-      <div className="max-w-2xl mx-auto">
-        <FileDropzone
-          onFiles={handleFiles}
-          disabled={createJobs.isPending}
-        />
+      {/* Dropzone & Upload Action Container */}
+      <div className="max-w-2xl mx-auto space-y-6">
+        <div className="bg-white rounded-2xl border border-slate-200 p-2 shadow-sm">
+          <FileDropzone
+            onFiles={handleFiles}
+            disabled={createJobs.isPending}
+          />
+        </div>
 
         {/* Selected files list */}
         {selectedFiles.length > 0 && (
-          <div className="mt-6 space-y-2 animate-slide-up">
-            <h3 className="text-sm font-semibold text-ink-light mb-3">
-              Selected files ({selectedFiles.length})
-            </h3>
-            {selectedFiles.map((file, i) => (
-              <div
-                key={`${file.name}-${i}`}
-                className="
-                  flex items-center justify-between gap-3
-                  px-4 py-3 rounded-xl bg-cream border border-ink/6
-                "
-              >
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-8 h-8 rounded-lg bg-error-light text-error flex items-center justify-center shrink-0">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                      <polyline points="14 2 14 8 20 8" />
-                    </svg>
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-ink truncate">
-                      {file.name}
-                    </p>
-                    <p className="text-xs text-ink-muted">
-                      {formatBytes(file.size)}
-                    </p>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => removeFile(i)}
-                  className="text-ink-muted hover:text-error transition-colors p-1"
-                  aria-label={`Remove ${file.name}`}
+          <div className="space-y-3 animate-slide-up bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+              <h3 className="text-xs uppercase font-bold text-slate-500 tracking-wider">
+                Queued for Processing ({selectedFiles.length})
+              </h3>
+              <span className="text-xs text-slate-400">PDF Document Format</span>
+            </div>
+
+            <div className="space-y-2">
+              {selectedFiles.map((file, i) => (
+                <div
+                  key={`${file.name}-${i}`}
+                  className="flex items-center justify-between gap-3 px-3.5 py-2.5 rounded-lg bg-slate-50 border border-slate-200/80"
                 >
-                  <XIcon size={14} />
-                </button>
-              </div>
-            ))}
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-8 h-8 rounded-lg bg-amber-100 text-amber-800 flex items-center justify-center shrink-0 font-bold text-xs">
+                      PDF
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs font-semibold text-slate-800 truncate">
+                        {file.name}
+                      </p>
+                      <p className="text-[11px] text-slate-500">
+                        {formatBytes(file.size)}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => removeFile(i)}
+                    className="text-slate-400 hover:text-red-600 transition-colors p-1"
+                    aria-label={`Remove ${file.name}`}
+                  >
+                    <XIcon size={14} />
+                  </button>
+                </div>
+              ))}
+            </div>
 
             {/* Upload button */}
-            <div className="pt-4">
+            <div className="pt-3">
               <button
                 type="button"
                 onClick={handleUpload}
                 disabled={createJobs.isPending}
-                className="
-                  w-full py-3.5 rounded-xl
-                  bg-accent text-white font-semibold text-sm
-                  hover:bg-accent/90 active:bg-accent
-                  shadow-sm hover:shadow-md
-                  transition-all duration-200
-                  disabled:opacity-50 disabled:cursor-not-allowed
-                  flex items-center justify-center gap-2
-                "
+                className="w-full py-3.5 px-6 rounded-xl bg-[#0A1128] text-purple-300 font-bold text-sm hover:bg-slate-900 border border-purple-500/40 shadow-sm hover:shadow-md transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 group"
               >
                 {createJobs.isPending ? (
                   <>
-                    <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <svg className="animate-spin w-4 h-4 text-purple-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                       <path d="M12 2a10 10 0 0 1 10 10" strokeLinecap="round" />
                     </svg>
-                    Uploading...
+                    <span>Remediating & Validating PDF...</span>
                   </>
                 ) : (
                   <>
-                    Start Processing
-                    <ArrowRightIcon size={14} />
+                    <span>Start PDF/UA Remediation Pipeline</span>
+                    <ArrowRightIcon size={14} className="group-hover:translate-x-1 transition-transform" />
                   </>
                 )}
               </button>
             </div>
 
             {createJobs.isError && (
-              <p className="text-sm text-error bg-error-light rounded-lg px-4 py-3 mt-2">
+              <p className="text-xs text-red-700 bg-red-50 border border-red-200 rounded-lg p-3">
                 {createJobs.error?.message || "Upload failed. Please try again."}
               </p>
             )}
@@ -149,39 +173,37 @@ export default function UploadPage() {
         )}
       </div>
 
-      {/* Pipeline overview — full width */}
-      <div className="mt-16 mb-4">
-        <div className="text-center mb-8">
-          <h2 className="text-lg font-display text-ink mb-2">
-            What to expect
+      {/* Enterprise Processing Pipeline Steps */}
+      <div className="space-y-6 pt-6">
+        <div className="text-center space-y-1">
+          <h2 className="text-lg font-display font-bold text-slate-900">
+            Automated Remediation & Conformance Pipeline
           </h2>
-          <p className="text-sm text-ink-muted leading-relaxed max-w-md mx-auto">
-            Processing typically takes 1&ndash;3 minutes. You'll get an accessible
-            PDF with proper structure tags, alt text for images, and a compliance report.
+          <p className="text-xs text-slate-500 max-w-md mx-auto">
+            Every document passes through an 8-stage automated workflow ensuring compliance with ISO 14289-1 and WCAG standards.
           </p>
         </div>
 
-        {/* Horizontal pipeline as connected steps */}
-        <div className="rounded-xl border border-ink/6 bg-cream p-5">
-          <div className="flex flex-wrap justify-center gap-3">
-            {PIPELINE_STEPS.map((step, i) => (
-              <div
-                key={step.label}
-                className="rounded-lg bg-paper-warm/50 px-4 py-4 text-center flex flex-col items-center gap-2 animate-fade-in min-w-[7rem] flex-1 max-w-[10rem]"
-                style={{ animationDelay: `${i * 60}ms` }}
-              >
-                <div className="w-9 h-9 rounded-xl bg-paper-warm text-ink-muted flex items-center justify-center">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {PIPELINE_STEPS.map((step, i) => (
+            <div
+              key={step.label}
+              className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm hover:border-purple-500/40 transition-colors flex flex-col justify-between gap-3"
+            >
+              <div className="flex items-center justify-between">
+                <div className="w-8 h-8 rounded-lg bg-slate-900 text-purple-300 flex items-center justify-center text-xs">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
                     <path d={step.icon} />
                   </svg>
                 </div>
-                <div>
-                  <p className="text-sm font-semibold text-ink leading-tight">{step.label}</p>
-                  <p className="text-xs text-ink-muted mt-0.5">{step.desc}</p>
-                </div>
+                <span className="font-mono text-[10px] text-slate-400">0{i + 1}</span>
               </div>
-            ))}
-          </div>
+              <div>
+                <p className="text-xs font-bold text-slate-900 leading-tight">{step.label}</p>
+                <p className="text-[11px] text-slate-500 mt-0.5 leading-snug">{step.desc}</p>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     </div>

@@ -16,6 +16,8 @@ services:
     volumes:
       - pdf_accessibility_data:/app/data
       - pdf_accessibility_cache:/home/app/.cache
+      - ./backend/app:/app/backend/app
+      - ./backend/tests:/app/backend/tests
     ports:
       - "${APP_BIND_IP:-127.0.0.1}:${APP_PORT:-8080}:8001"
     stop_grace_period: 1m

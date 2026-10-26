@@ -22,6 +22,7 @@ from app.services.path_safety import (
 )
 from app.services.pdf_preview import render_page_png_bytes
 from app.services.review_surface import is_user_visible_review_task_type
+from app.services.tag_tree_validator import TagTreeValidator
 
 logger = logging.getLogger(__name__)
 
@@ -225,3 +226,19 @@ async def download_html_report(
             ),
         },
     )
+
+
+@router.get("/tag-tree")
+async def get_tag_tree(
+    job_id: str,
+    db: AsyncSession = Depends(get_db),
+    session: AnonymousSession = Depends(get_anonymous_session),
+):
+    job = await _load_owned_job(job_id=job_id, session_hash=session.session_hash, db=db)
+    _ensure_output_ready_for_inspection(job)
+    pdf_path = _job_pdf_path(job)
+
+    validator = TagTreeValidator(pdf_path=pdf_path, structure_json=job.structure_json)
+    result = await asyncio.to_thread(validator.build_and_validate)
+    return result
+

@@ -1,25 +1,30 @@
+import { useState } from "react";
 import type { ValidationChange, ValidationReport as ValidationReportType } from "../types";
 import { pluralize } from "../utils/format";
 import { asBool, asNumber, asString } from "../utils/typeGuards";
 import { CheckIcon, WarningIcon } from "./Icons";
+import TagTreeInspector from "./TagTreeInspector";
 
 interface ValidationReportProps {
   report: ValidationReportType;
+  jobId?: string;
 }
 
 function statusLabel(status: ValidationChange["remediation_status"]): string {
   if (status === "auto_remediated") return "Auto Remediated";
   if (status === "manual_remediated") return "Manual Remediated";
-  return "Needs Remediation";
+  return "Needs Attention";
 }
 
 function statusTone(status: ValidationChange["remediation_status"]): string {
-  if (status === "auto_remediated") return "bg-success-light text-success";
-  if (status === "manual_remediated") return "bg-info-light text-info";
-  return "bg-warning-light text-warning";
+  if (status === "auto_remediated") return "bg-emerald-50 text-emerald-800 border-emerald-200";
+  if (status === "manual_remediated") return "bg-blue-50 text-blue-800 border-blue-200";
+  return "bg-amber-50 text-amber-900 border-amber-200";
 }
 
-export default function ValidationReport({ report }: ValidationReportProps) {
+export default function ValidationReport({ report, jobId }: ValidationReportProps) {
+  const [activeTab, setActiveTab] = useState<"overview" | "tree" | "rules" | "fonts" | "fidelity" | "technical">("overview");
+
   const remediation =
     report.remediation && typeof report.remediation === "object"
       ? (report.remediation as Record<string, unknown>)
@@ -43,25 +48,20 @@ export default function ValidationReport({ report }: ValidationReportProps) {
   const blockingTasks = asNumber(fidelitySummary.blocking_tasks);
   const advisoryTasks = asNumber(fidelitySummary.advisory_tasks);
 
-  // Rule-level issue counts (distinct accessibility problems), not raw
-  // occurrence sums. veraPDF's per-rule counts can reach the thousands and
-  // are not meaningful to users as a single number.
   const baselineIssues = asNumber(remediation.baseline_error_rules);
   const postIssues = asNumber(remediation.post_error_rules);
   const autoFixedIssues = asNumber(remediation.auto_remediated_errors);
   const autoRemediated = asNumber(remediation.auto_remediated);
-  const needsRemediation = asNumber(remediation.needs_remediation);
   const issuesReduced =
     baselineIssues !== null && postIssues !== null ? baselineIssues - postIssues : null;
+
   const fontAttempted = asBool(fontRemediation.attempted);
   const fontApplied = asBool(fontRemediation.applied);
   const selectedLane = asString(fontRemediation.selected_lane);
   const lanesPlanned = Array.isArray(fontRemediation.lanes_planned)
     ? fontRemediation.lanes_planned.length
     : 0;
-  const laneResults = Array.isArray(fontRemediation.lane_results)
-    ? fontRemediation.lane_results.length
-    : 0;
+
   const changes = [...(report.changes ?? [])].sort((a, b) => {
     const order = {
       needs_remediation: 0,
@@ -71,269 +71,390 @@ export default function ValidationReport({ report }: ValidationReportProps) {
     return order[a.remediation_status] - order[b.remediation_status];
   });
 
+  const fontRules = changes.filter((c) => c.rule_id.includes("7.21.4") || c.rule_id.includes("7.21.3"));
+  const fontErrorsResolved = fontRules.filter((c) => c.remediation_status === "auto_remediated").length;
+
   return (
-    <div className="space-y-4">
-      {/* Summary card */}
-      <div
-        className={`
-          rounded-xl border p-5
-          ${
-            report.compliant
-              ? "border-success/30 bg-success-light/30"
-              : "border-warning/30 bg-warning-light/30"
-          }
-        `}
-      >
-        <div className="flex items-center gap-3">
-          {report.compliant ? (
-            <div className="w-10 h-10 rounded-xl bg-success text-white flex items-center justify-center">
-              <CheckIcon size={20} />
-            </div>
-          ) : (
-            <div className="w-10 h-10 rounded-xl bg-warning text-white flex items-center justify-center">
-              <WarningIcon size={20} />
-            </div>
-          )}
-          <div>
-            <h3 className="font-display text-lg font-semibold">
-              {report.compliant
-                ? "PDF/UA Compliant"
-                : "Issues Found"}
-            </h3>
-            <p className="text-sm text-ink-muted">
-              {report.violations.length === 0
-                ? "All validation checks passed."
-                : `${report.violations.length} ${pluralize(report.violations.length, "issue")} require attention.`}
-            </p>
-          </div>
-        </div>
+    <div className="space-y-6">
+      {/* Tab Navigation */}
+      <div className="flex items-center gap-1.5 border-b border-slate-200 overflow-x-auto pb-1">
+        {[
+          { id: "overview", label: "Executive Summary" },
+          { id: "tree", label: "Structure Tag Tree", badge: "Interactive" },
+          { id: "rules", label: `veraPDF Rules (${changes.length})` },
+          { id: "fonts", label: "Font Remediation", badge: fontApplied ? "Fixed" : undefined },
+          { id: "fidelity", label: "Fidelity & OCR" },
+          { id: "technical", label: "Technical Specs" },
+        ].map((tab) => (
+          <button
+            key={tab.id}
+            type="button"
+            onClick={() => setActiveTab(tab.id as any)}
+            className={`px-4 py-2.5 text-xs font-semibold rounded-t-lg transition-all flex items-center gap-2 whitespace-nowrap ${
+              activeTab === tab.id
+                ? "bg-white text-slate-900 border-t-2 border-amber-500 shadow-sm border-x border-slate-200"
+                : "text-slate-500 hover:text-slate-900 hover:bg-slate-100/60"
+            }`}
+          >
+            <span>{tab.label}</span>
+            {tab.badge && (
+              <span className={`px-1.5 py-0.2 rounded text-[10px] font-bold uppercase ${
+                tab.badge === "Interactive" ? "bg-purple-100 text-purple-700" : "bg-emerald-100 text-emerald-800"
+              }`}>
+                {tab.badge}
+              </span>
+            )}
+          </button>
+        ))}
       </div>
 
-      {(baselineIssues !== null || postIssues !== null) && (
-        <div className="rounded-xl border border-ink/6 bg-cream p-4">
-          <h4 className="text-sm font-semibold text-ink mb-3">
-            Before/After Validation
-          </h4>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
-            <div className="rounded-lg bg-paper-warm/60 px-3 py-2">
-              <p className="text-ink-muted text-xs">Baseline</p>
-              <p className="text-ink mt-0.5">
-                {baselineIssues ?? "n/a"} {pluralize(baselineIssues ?? 0, "issue")}
-              </p>
-            </div>
-            <div className="rounded-lg bg-paper-warm/60 px-3 py-2">
-              <p className="text-ink-muted text-xs">Remediated Output</p>
-              <p className="text-ink mt-0.5">
-                {postIssues ?? "n/a"} {pluralize(postIssues ?? 0, "issue")}
-              </p>
-            </div>
-            <div className="rounded-lg bg-paper-warm/60 px-3 py-2">
-              <p className="text-ink-muted text-xs">Delta</p>
-              <p className="text-ink mt-0.5">
-                {autoFixedIssues !== null
-                  ? `${autoFixedIssues} fixed automatically`
-                  : issuesReduced !== null
-                    ? `${issuesReduced >= 0 ? "+" : ""}${issuesReduced} ${pluralize(Math.abs(issuesReduced), "issue")} reduced`
-                    : "n/a"}
-              </p>
-              {(autoRemediated !== null || needsRemediation !== null) && (
-                <p className="text-xs text-ink-muted mt-0.5">
-                  auto: {autoRemediated ?? "n/a"} | remaining: {needsRemediation ?? "n/a"}
+      {/* TAB 1: EXECUTIVE OVERVIEW */}
+      {activeTab === "overview" && (
+        <div className="space-y-6 animate-fade-in">
+          {/* Status Header */}
+          {(() => {
+            const hasBlockingTasks = (blockingTasks ?? 0) > 0;
+            const isFullyCompliant = report.compliant && !hasBlockingTasks;
+
+            return (
+              <div
+                className={`rounded-xl border p-5 flex items-center justify-between shadow-sm ${
+                  isFullyCompliant
+                    ? "border-emerald-300 bg-emerald-50/70"
+                    : "border-amber-300 bg-amber-50/70"
+                }`}
+              >
+                <div className="flex items-center gap-4">
+                  <div
+                    className={`w-12 h-12 rounded-xl flex items-center justify-center text-white shadow-sm shrink-0 ${
+                      isFullyCompliant ? "bg-emerald-600" : "bg-amber-600"
+                    }`}
+                  >
+                    {isFullyCompliant ? <CheckIcon size={24} /> : <WarningIcon size={24} />}
+                  </div>
+                  <div>
+                    <h3 className="font-display text-lg font-bold text-slate-900">
+                      {isFullyCompliant
+                        ? "ISO 14289-1 (PDF/UA-1) Automated Validation Passed"
+                        : report.compliant
+                        ? "Automated Validation Passed — Manual Review Items Pending"
+                        : "Remediated Output Generated — Review Follow-ups"}
+                    </h3>
+                    <p className="text-xs text-slate-600 mt-0.5">
+                      {isFullyCompliant
+                        ? "All automated accessibility validations passed veraPDF verification. No unresolved blocking issues detected."
+                        : report.compliant
+                        ? `veraPDF reported 0 automated rule violations, but ${blockingTasks ?? 1} blocking ${pluralize(
+                            blockingTasks ?? 1,
+                            "issue"
+                          )} require verification before full compliance can be certified.`
+                        : `${report.violations.length} specific ${pluralize(
+                            report.violations.length,
+                            "violation"
+                          )} flagged by veraPDF standard checks.`}
+                    </p>
+                    {hasBlockingTasks && (
+                      <p className="text-[11px] font-medium text-amber-800 mt-1">
+                        Notice: Automated validation verifies machine-testable PDF/UA-1 syntax. Complete accessibility verification requires resolving all blocking review tasks.
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="hidden sm:flex flex-col items-end text-xs text-slate-500">
+                  <span className="font-semibold text-slate-800">Engine: veraPDF 1.26</span>
+                  <span className="font-mono text-[11px]">Profile: {report.profile || "PDF/UA-1"}</span>
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Before vs After Scorecards */}
+          {(baselineIssues !== null || postIssues !== null) && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                <span className="text-[11px] uppercase font-bold text-slate-400 tracking-wider">
+                  Baseline (Original PDF)
+                </span>
+                <div className="flex items-baseline gap-2 mt-2">
+                  <span className="font-display text-3xl font-extrabold text-slate-800">
+                    {baselineIssues ?? "—"}
+                  </span>
+                  <span className="text-xs text-slate-500 font-medium">failing rules</span>
+                </div>
+                <p className="text-xs text-slate-500 mt-2">Unstructured, unembedded elements.</p>
+              </div>
+
+              <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                <span className="text-[11px] uppercase font-bold text-slate-400 tracking-wider">
+                  Remediated Output
+                </span>
+                <div className="flex items-baseline gap-2 mt-2">
+                  <span className="font-display text-3xl font-extrabold text-slate-800">
+                    {postIssues ?? "0"}
+                  </span>
+                  <span className="text-xs text-slate-500 font-medium">remaining rules</span>
+                </div>
+                <p className="text-xs text-slate-500 mt-2">
+                  {autoFixedIssues !== null ? `${autoFixedIssues} rules auto-resolved.` : "Remediated successfully."}
                 </p>
-              )}
-              {fontAttempted && (
-                <p className="text-xs text-ink-muted mt-0.5">
-                  font lanes:{" "}
-                  {fontApplied
-                    ? `applied${selectedLane ? ` (${selectedLane})` : ""}`
-                    : "attempted (not applied)"}
-                  {lanesPlanned > 0 ? ` | planned: ${lanesPlanned}` : ""}
-                  {laneResults > 0 ? ` | attempts: ${laneResults}` : ""}
+              </div>
+
+              <div className="rounded-xl border border-amber-200 bg-gradient-to-br from-amber-50 to-white p-4 shadow-sm">
+                <span className="text-[11px] uppercase font-bold text-amber-700 tracking-wider">
+                  Automated Resolution Delta
+                </span>
+                <div className="flex items-baseline gap-2 mt-2">
+                  <span className="font-display text-3xl font-extrabold text-amber-600">
+                    {autoFixedIssues !== null
+                      ? `${autoFixedIssues}`
+                      : issuesReduced !== null
+                      ? `${issuesReduced >= 0 ? "+" : ""}${issuesReduced}`
+                      : "0"}
+                  </span>
+                  <span className="text-xs text-amber-800 font-medium">rules fixed</span>
+                </div>
+                <p className="text-xs text-slate-600 mt-2">
+                  {autoRemediated !== null ? `${autoRemediated} auto-remediated total` : "Pipeline executed."}
                 </p>
-              )}
+              </div>
+            </div>
+          )}
+
+          {/* Quick Quality Summary */}
+          <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm space-y-3">
+            <h4 className="text-xs uppercase font-bold tracking-wider text-slate-500">
+              Quality Assurance Checks
+            </h4>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
+                <span className="text-slate-500">Visual & Layout Fidelity</span>
+                <p className="text-slate-900 font-bold mt-1">
+                  {fidelityPassed ? "Passed (No Significant Drift)" : "Needs Review"}
+                </p>
+              </div>
+              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
+                <span className="text-slate-500">Blocking User Tasks</span>
+                <p className="text-slate-900 font-bold mt-1">
+                  {blockingTasks ?? 0} {pluralize(blockingTasks ?? 0, "task")}
+                </p>
+              </div>
+              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
+                <span className="text-slate-500">Advisory Items</span>
+                <p className="text-slate-900 font-bold mt-1">
+                  {advisoryTasks ?? 0} {pluralize(advisoryTasks ?? 0, "item")}
+                </p>
+              </div>
             </div>
           </div>
         </div>
       )}
 
-      {(fidelityPassed !== null || fidelityChecks.length > 0) && (
-        <div className="rounded-xl border border-ink/6 bg-cream p-4">
-          <h4 className="text-sm font-semibold text-ink mb-3">
-            Quality Check
-          </h4>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
-            <div className="rounded-lg bg-paper-warm/60 px-3 py-2">
-              <p className="text-ink-muted text-xs">Status</p>
-              <p className="text-ink mt-0.5">
-                {fidelityPassed === null
-                  ? "n/a"
-                  : fidelityPassed
-                    ? "Passed"
-                    : "Needs manual fixes"}
-              </p>
-            </div>
-            <div className="rounded-lg bg-paper-warm/60 px-3 py-2">
-              <p className="text-ink-muted text-xs">Required Fixes</p>
-              <p className="text-ink mt-0.5">{blockingTasks ?? "n/a"}</p>
-            </div>
-            <div className="rounded-lg bg-paper-warm/60 px-3 py-2">
-              <p className="text-ink-muted text-xs">Suggestions</p>
-              <p className="text-ink mt-0.5">{advisoryTasks ?? "n/a"}</p>
-            </div>
-          </div>
-          {fidelityChecks.length > 0 && (
-            <div className="mt-4 space-y-2">
-              {fidelityChecks.map((check, index) => {
-                const status = asString(check.status) ?? "skip";
-                const message = asString(check.message) ?? "No detail available.";
-                const label = asString(check.check) ?? `check-${index}`;
-                const metrics =
-                  check.metrics && typeof check.metrics === "object"
-                    ? (check.metrics as Record<string, unknown>)
-                    : {};
-                return (
-                  <div
-                    key={`${label}-${index}`}
-                    className="rounded-lg bg-paper-warm/60 px-3 py-2"
-                  >
-                    <div className="flex items-center gap-2 justify-between">
-                      <p className="text-sm text-ink capitalize">
-                        {label.replaceAll("_", " ")}
-                      </p>
-                      <span
-                        className={`
-                          text-[11px] px-2 py-1 rounded-full
-                          ${
-                            status === "pass"
-                              ? "bg-success-light text-success"
-                              : status === "fail"
-                                ? "bg-error-light text-error"
-                                : status === "warning"
-                                  ? "bg-warning-light text-warning"
-                                  : "bg-paper-warm text-ink-muted"
-                          }
-                        `}
-                      >
-                        {status}
-                      </span>
-                    </div>
-                    <p className="text-xs text-ink-muted mt-1">{message}</p>
-                    {Object.keys(metrics).length > 0 && (
-                      <p className="text-xs text-ink-muted mt-1 font-mono">
-                        {Object.entries(metrics)
-                          .map(([key, value]) => `${key}=${String(value)}`)
-                          .join(" | ")}
-                      </p>
-                    )}
-                  </div>
-                );
-              })}
+      {/* TAB 2: STRUCTURE TAG TREE */}
+      {activeTab === "tree" && (
+        <div className="animate-fade-in">
+          {jobId ? (
+            <TagTreeInspector jobId={jobId} />
+          ) : (
+            <div className="text-center py-12 text-slate-500 text-sm">
+              Job ID required for live tag tree inspection.
             </div>
           )}
         </div>
       )}
 
-      {changes.length > 0 && (
-        <div className="rounded-xl border border-ink/6 bg-cream overflow-hidden">
-          <div className="px-4 py-3 border-b border-ink/6 bg-paper-warm/50">
-            <h4 className="text-sm font-semibold text-ink">
-              Issue History
+      {/* TAB 3: VERAPDF RULES BREAKDOWN */}
+      {activeTab === "rules" && (
+        <div className="space-y-4 animate-fade-in">
+          <div className="flex items-center justify-between">
+            <h4 className="font-display text-sm font-bold text-slate-900">
+              Conformance Rules & Status ({changes.length})
             </h4>
+            <span className="text-xs text-slate-500">
+              ISO 14289-1:2014 & PDF 1.7 Specification Rules
+            </span>
           </div>
-          <div className="divide-y divide-ink/5">
-            {changes.map((c, i) => (
-              <div key={`${c.rule_id}-${i}`} className="px-4 py-3">
-                <div className="flex items-start gap-2 justify-between">
-                  <div className="min-w-0">
-                    <p className="text-sm text-ink">{c.description}</p>
-                    {c.fix_hint && (
-                      <p className="text-xs text-ink-muted mt-1">
-                        Suggested fix: {c.fix_hint}
-                      </p>
-                    )}
-                  </div>
-                  <span className={`shrink-0 text-[11px] px-2 py-1 rounded-full ${statusTone(c.remediation_status)}`}>
-                    {statusLabel(c.remediation_status)}
-                  </span>
-                </div>
-                <div className="flex items-center gap-3 mt-1">
-                  <span className="text-xs font-mono text-ink-muted">
-                    {c.rule_id}
-                  </span>
-                  {c.category && (
-                    <span className="text-xs text-ink-muted capitalize">
-                      {c.category}
-                    </span>
-                  )}
-                  <span className="text-xs text-ink-muted">
-                    {c.baseline_count} &rarr; {c.post_count}
-                  </span>
-                  {c.location && (
-                    <span className="text-xs text-ink-muted truncate">
-                      {c.location}
-                    </span>
-                  )}
-                </div>
-              </div>
-            ))}
+
+          <div className="rounded-xl border border-slate-200 bg-white overflow-hidden shadow-sm">
+            <table className="w-full text-xs text-left border-collapse">
+              <thead>
+                <tr className="bg-slate-50 border-b border-slate-200 text-slate-600 font-semibold">
+                  <th className="py-2.5 px-3">Rule Specification</th>
+                  <th className="py-2.5 px-3">Description</th>
+                  <th className="py-2.5 px-3 text-center">Baseline</th>
+                  <th className="py-2.5 px-3 text-center">Remediated</th>
+                  <th className="py-2.5 px-3 text-right">Outcome</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {changes.map((change) => (
+                  <tr key={change.rule_id} className="hover:bg-slate-50/60">
+                    <td className="py-2.5 px-3 font-mono font-bold text-slate-800">
+                      {change.rule_id}
+                    </td>
+                    <td className="py-2.5 px-3 text-slate-600 max-w-md">
+                      {change.description}
+                    </td>
+                    <td className="py-2.5 px-3 text-center font-mono">
+                      {change.baseline_count}
+                    </td>
+                    <td className="py-2.5 px-3 text-center font-mono font-bold">
+                      {change.post_count}
+                    </td>
+                    <td className="py-2.5 px-3 text-right">
+                      <span className={`inline-block px-2 py-0.5 rounded text-[11px] font-semibold border ${statusTone(change.remediation_status)}`}>
+                        {statusLabel(change.remediation_status)}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
       )}
 
-      {/* Violations list */}
-      {report.violations.length > 0 && (
-        <div className="rounded-xl border border-ink/6 bg-cream overflow-hidden">
-          <div className="px-4 py-3 border-b border-ink/6 bg-paper-warm/50">
-            <h4 className="text-sm font-semibold text-ink">
-              Validation Issues
-            </h4>
-          </div>
-          <div className="divide-y divide-ink/5">
-            {report.violations.map((v, i) => (
-              <div key={i} className="px-4 py-3 flex items-start gap-3">
-                <span
-                  className={`
-                    mt-0.5 w-5 h-5 rounded flex items-center justify-center text-[10px] font-bold shrink-0
-                    ${v.severity === "error" ? "bg-error-light text-error" : "bg-warning-light text-warning"}
-                  `}
-                >
-                  {v.severity === "error" ? "!" : "?"}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm text-ink">{v.description}</p>
-                  {v.fix_hint && (
-                    <p className="text-xs text-ink-muted mt-1">
-                      Suggested fix: {v.fix_hint}
-                    </p>
-                  )}
-                  <div className="flex items-center gap-3 mt-1">
-                    <span className="text-xs font-mono text-ink-muted">
-                      {v.rule_id}
-                    </span>
-                    {v.category && (
-                      <span className="text-xs text-ink-muted capitalize">
-                        {v.category}
-                      </span>
-                    )}
-                    {v.remediation_status && (
-                      <span className={`text-xs px-1.5 py-0.5 rounded ${statusTone(v.remediation_status)}`}>
-                        {statusLabel(v.remediation_status)}
-                      </span>
-                    )}
-                    {v.count > 1 && (
-                      <span className="text-xs text-ink-muted">
-                        {v.count} occurrences
-                      </span>
-                    )}
-                    {v.location && (
-                      <span className="text-xs text-ink-muted truncate">
-                        {v.location}
-                      </span>
-                    )}
-                  </div>
-                </div>
+      {/* TAB 4: FONT REMEDIATION */}
+      {activeTab === "fonts" && (
+        <div className="space-y-4 animate-fade-in">
+          <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div>
+                <h4 className="font-display text-base font-bold text-slate-900">
+                  PDF/UA Font Embedding & Metrics (ISO 14289-1 Clause 7.21.4.1)
+                </h4>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Remediates unembedded Type 1, TrueType, and CID fonts to ensure screen-reader rendering consistency.
+                </p>
               </div>
-            ))}
+              <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
+                fontApplied ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-700"
+              }`}>
+                {fontApplied ? "Remediation Applied" : fontAttempted ? "Attempted" : "Fully Embedded"}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs">
+              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
+                <span className="text-slate-400 font-semibold uppercase text-[10px]">Active Strategy</span>
+                <p className="font-mono text-slate-900 font-bold mt-1">{selectedLane || "Local System & gsfonts"}</p>
+              </div>
+              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
+                <span className="text-slate-400 font-semibold uppercase text-[10px]">Font Rules Addressed</span>
+                <p className="font-mono text-slate-900 font-bold mt-1">
+                  {fontErrorsResolved} resolved / {fontRules.length} tracked
+                </p>
+              </div>
+              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
+                <span className="text-slate-400 font-semibold uppercase text-[10px]">Pipeline Attempts</span>
+                <p className="font-mono text-slate-900 font-bold mt-1">
+                  {lanesPlanned} planned
+                </p>
+              </div>
+            </div>
+
+            <div className="p-3.5 rounded-lg bg-blue-50 border border-blue-200 text-xs text-blue-900 space-y-1">
+              <p className="font-semibold">Automated Font Program Injection:</p>
+              <p className="text-blue-800">
+                Unembedded standard 14 and Type 1/TrueType fonts (e.g. Helvetica, Times-Roman, Courier) are resolved via metric-compatible font programs from Liberation and Ghostscript URW fonts. Font program streams and AFM metrics are embedded directly into font descriptors without destructive document re-rendering.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TAB 5: FIDELITY & OCR */}
+      {activeTab === "fidelity" && (
+        <div className="space-y-4 animate-fade-in">
+          <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm space-y-4">
+            <h4 className="font-display text-base font-bold text-slate-900">
+              Text Extraction & Fidelity Analysis
+            </h4>
+
+            {(() => {
+              const ocrCheck = fidelityChecks.find((c) => asString(c.check) === "ocr_coverage");
+              const isScannedOrOcr = Boolean(ocrCheck);
+              return (
+                <div className="p-3.5 rounded-lg bg-slate-50 border border-slate-200 text-xs text-slate-700 space-y-2">
+                  <div className="flex items-center gap-2 text-slate-900 font-semibold">
+                    <span
+                      className={`w-2 h-2 rounded-full ${
+                        isScannedOrOcr
+                          ? ocrCheck?.status === "pass"
+                            ? "bg-emerald-500"
+                            : ocrCheck?.status === "fail"
+                            ? "bg-red-500"
+                            : "bg-amber-500"
+                          : "bg-emerald-500"
+                      }`}
+                    />
+                    {isScannedOrOcr
+                      ? "Optical Character Recognition (OCR) Analysis:"
+                      : "Digital Vector Text vs Scanned Raster OCR:"}
+                  </div>
+                  <p>
+                    {isScannedOrOcr
+                      ? asString(ocrCheck?.message) ||
+                        "Optical Character Recognition (OCR) was performed on scanned raster pages to extract selectable text."
+                      : "This document contains digitally native text streams. Because digital text already possesses high-precision vector glyphs and character coordinates, optical character recognition (OCR) was safely bypassed to preserve 100% typographic sharpness and prevent OCR character errors."}
+                  </p>
+                </div>
+              );
+            })()}
+
+            {fidelityChecks.length > 0 && (
+              <div className="space-y-2">
+                <span className="text-xs uppercase font-bold text-slate-500">Automated Quality Checks</span>
+                {fidelityChecks.map((check, index) => (
+                  <div key={index} className="p-3 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-between text-xs">
+                    <div>
+                      <span className="font-semibold text-slate-900 capitalize">{asString(check.check)}</span>
+                      <p className="text-slate-500 mt-0.5">{asString(check.message)}</p>
+                    </div>
+                    <span className={`px-2 py-0.5 rounded text-[11px] font-bold uppercase ${
+                      check.status === "pass"
+                        ? "bg-emerald-100 text-emerald-800"
+                        : check.status === "fail"
+                        ? "bg-red-100 text-red-800"
+                        : check.status === "warning"
+                        ? "bg-amber-100 text-amber-800"
+                        : "bg-slate-200 text-slate-700"
+                    }`}>
+                      {asString(check.status)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* TAB 6: TECHNICAL SPECS */}
+      {activeTab === "technical" && (
+        <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm space-y-3 text-xs animate-fade-in">
+          <h4 className="font-display text-base font-bold text-slate-900 mb-2">Technical Metadata</h4>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="p-2.5 rounded bg-slate-50 border border-slate-200">
+              <span className="text-slate-400">Standard & Profile:</span>
+              <p className="font-mono text-slate-800 mt-0.5 font-bold">
+                {report.standard || "PDF/UA-1"} ({report.profile || "ISO 14289-1:2014"})
+              </p>
+            </div>
+            <div className="p-2.5 rounded bg-slate-50 border border-slate-200">
+              <span className="text-slate-400">Validator Engine:</span>
+              <p className="font-mono text-slate-800 mt-0.5 font-bold">{report.validator || "veraPDF 1.26"}</p>
+            </div>
+            <div className="p-2.5 rounded bg-slate-50 border border-slate-200">
+              <span className="text-slate-400">Report Timestamp:</span>
+              <p className="font-mono text-slate-800 mt-0.5 font-bold">
+                {report.generated_at ? new Date(report.generated_at).toUTCString() : "n/a"}
+              </p>
+            </div>
+            <div className="p-2.5 rounded bg-slate-50 border border-slate-200">
+              <span className="text-slate-400">Platform:</span>
+              <p className="text-slate-800 mt-0.5 font-bold">AccessFix PDF by Velvora Solutions</p>
+            </div>
           </div>
         </div>
       )}

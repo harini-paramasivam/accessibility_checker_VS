@@ -183,13 +183,21 @@ def _should_synthesize_visual_figure(
         return False, "figure_already_present"
     if field_count > 0:
         return False, "page_contains_fields"
+    # A full-page image spanning the page (area_ratio >= 0.75) where text has been extracted
+    # is a scanned document page background, not a standalone chart or diagram.
+    if area_ratio >= 0.75 and (
+        (text_chars >= 40 and block_count >= 2)
+        or block_count >= 4
+        or text_chars > SYNTHETIC_FIGURE_TEXT_CHAR_MAX
+    ):
+        return False, "scanned_text_page_background"
     if block_count == 0:
         return True, "dominant_image_without_text"
     if text_chars <= SYNTHETIC_FIGURE_TEXT_CHAR_MAX and long_blocks == 0:
         return True, "dominant_image_with_sparse_text"
     if block_count <= 1 and area_ratio >= 0.72:
         return True, "dominant_image_with_single_text_block"
-    if fragmentary_ratio >= 0.6 and long_blocks <= 1:
+    if fragmentary_ratio >= 0.6 and long_blocks <= 1 and text_chars <= SYNTHETIC_FIGURE_TEXT_CHAR_MAX:
         return True, "dominant_image_with_fragmentary_text"
     return False, "narrative_text_already_present"
 

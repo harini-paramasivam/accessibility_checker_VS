@@ -39,7 +39,7 @@ from app.pipeline.llm_operations import (
 from app.pipeline.llm_operations import (
     pretag_llm_operation_timeout_seconds as _pretag_llm_operation_timeout_seconds,
 )
-from app.pipeline.ocr import run_ocr
+from app.pipeline.ocr import run_ocr, verify_ocr_engine
 from app.pipeline.structure import extract_structure
 from app.pipeline.subprocess_utils import (
     SubprocessTimeout,
@@ -274,7 +274,12 @@ SYSTEM_FONT_DIRS = (
     Path("/Library/Fonts"),
     Path.home() / "Library/Fonts",
     Path("/usr/share/fonts"),
+    Path("/usr/share/fonts/truetype"),
+    Path("/usr/share/fonts/type1"),
+    Path("/usr/share/fonts/opentype"),
     Path("/usr/local/share/fonts"),
+    Path("/usr/share/ghostscript"),
+    Path("/var/lib/ghostscript"),
 )
 GHOSTSCRIPT_ALWAYS_EMBED_FONTS = (
     "/Courier",
@@ -323,6 +328,58 @@ GHOSTSCRIPT_TYPE1_DESCRIPTOR_SPECS = {
     "courierboldoblique": {"afm": "n022024l.afm", "flags": 97},
     "symbol": {"afm": "s050000l.afm", "flags": 4},
     "zapfdingbats": {"afm": "d050000l.afm", "flags": 4},
+}
+METRIC_COMPATIBLE_FONT_ALIASES: dict[str, list[str]] = {
+    "helvetica": ["liberationsansregular", "liberationsans", "dejavusans", "freesans", "arial", "nimbussansregular", "nimbussans"],
+    "helveticaregular": ["liberationsansregular", "liberationsans", "dejavusans", "freesans", "arial"],
+    "helveticabold": ["liberationsansbold", "dejavusansbold", "freesansbold", "arialbold", "nimbussansbold"],
+    "helveticaoblique": ["liberationsansitalic", "dejavusansoblique", "freesansoblique", "arialitalic", "nimbussansitalic"],
+    "helveticaitalic": ["liberationsansitalic", "dejavusansoblique", "freesansoblique", "arialitalic", "nimbussansitalic"],
+    "helveticaboldoblique": ["liberationsansbolditalic", "dejavusansboldoblique", "freesansbolditalic", "arialbolditalic", "nimbussansbolditalic"],
+    "helveticabolditalic": ["liberationsansbolditalic", "dejavusansboldoblique", "freesansbolditalic", "arialbolditalic", "nimbussansbolditalic"],
+    "arial": ["liberationsansregular", "liberationsans", "helvetica", "dejavusans", "freesans"],
+    "arialbold": ["liberationsansbold", "helveticabold", "dejavusansbold", "freesansbold"],
+    "arialitalic": ["liberationsansitalic", "helveticaoblique", "dejavusansoblique", "freesansoblique"],
+    "arialbolditalic": ["liberationsansbolditalic", "helveticaboldoblique", "dejavusansboldoblique", "freesansbolditalic"],
+    "timesroman": ["liberationserifregular", "liberationserif", "dejavuserif", "freeserif", "timesnewroman", "nimbusromanregular", "nimbusroman"],
+    "times": ["liberationserifregular", "liberationserif", "dejavuserif", "freeserif", "timesnewroman"],
+    "timesregular": ["liberationserifregular", "liberationserif", "dejavuserif", "freeserif"],
+    "timesnewroman": ["liberationserifregular", "liberationserif", "dejavuserif", "freeserif", "timesroman"],
+    "timesbold": ["liberationserifbold", "dejavuserifbold", "freeserifbold", "timesnewromanbold", "nimbusromanbold"],
+    "timesnewromanbold": ["liberationserifbold", "dejavuserifbold", "freeserifbold", "timesbold"],
+    "timesitalic": ["liberationserifitalic", "dejavuserifitalic", "freeserifitalic", "timesnewromanitalic", "nimbusromanitalic"],
+    "timesnewromanitalic": ["liberationserifitalic", "dejavuserifitalic", "freeserifitalic", "timesitalic"],
+    "timesbolditalic": ["liberationserifbolditalic", "dejavuserifbolditalic", "freeserifbolditalic", "timesnewromanbolditalic", "nimbusromanbolditalic"],
+    "timesnewromanbolditalic": ["liberationserifbolditalic", "dejavuserifbolditalic", "freeserifbolditalic", "timesbolditalic"],
+    "courier": ["liberationmonoregular", "liberationmono", "dejavusansmono", "freemono", "couriernew", "nimbusmonopsregular", "nimbusmonops"],
+    "courierregular": ["liberationmonoregular", "liberationmono", "dejavusansmono", "freemono"],
+    "couriernew": ["liberationmonoregular", "liberationmono", "dejavusansmono", "freemono", "courier"],
+    "courierbold": ["liberationmonobold", "dejavusansmonobold", "freemonobold", "couriernewbold", "nimbusmonopsbold"],
+    "couriernewbold": ["liberationmonobold", "dejavusansmonobold", "freemonobold", "courierbold"],
+    "courieroblique": ["liberationmonoitalic", "dejavusansmonooblique", "freemonooblique", "couriernewitalic", "nimbusmonopsitalic"],
+    "courieritalic": ["liberationmonoitalic", "dejavusansmonooblique", "freemonooblique", "couriernewitalic", "nimbusmonopsitalic"],
+    "couriernewitalic": ["liberationmonoitalic", "dejavusansmonooblique", "freemonooblique", "courieritalic"],
+    "courierboldoblique": ["liberationmonobolditalic", "dejavusansmonoboldoblique", "freemonobolditalic", "couriernewbolditalic", "nimbusmonopsbolditalic"],
+    "courierbolditalic": ["liberationmonobolditalic", "dejavusansmonoboldoblique", "freemonobolditalic", "couriernewbolditalic", "nimbusmonopsbolditalic"],
+    "couriernewbolditalic": ["liberationmonobolditalic", "dejavusansmonoboldoblique", "freemonobolditalic", "courierbolditalic"],
+    "symbol": ["standardsymbolsps", "symbol", "droidsansfallback"],
+    "zapfdingbats": ["d050000l", "dingbats"],
+}
+STANDARD14_METRIC_FALLBACKS: dict[str, dict[str, object]] = {
+    "timesroman": {"Flags": 34, "ItalicAngle": 0, "Ascent": 683, "Descent": -217, "CapHeight": 662, "StemV": 80, "FontBBox": [-168, -218, 1000, 898], "DefaultWidth": 250},
+    "timesbold": {"Flags": 34, "ItalicAngle": 0, "Ascent": 683, "Descent": -217, "CapHeight": 676, "StemV": 130, "FontBBox": [-168, -218, 1000, 935], "DefaultWidth": 250},
+    "timesitalic": {"Flags": 98, "ItalicAngle": -15, "Ascent": 683, "Descent": -217, "CapHeight": 653, "StemV": 80, "FontBBox": [-169, -217, 1010, 883], "DefaultWidth": 250},
+    "timesbolditalic": {"Flags": 98, "ItalicAngle": -15, "Ascent": 683, "Descent": -217, "CapHeight": 669, "StemV": 130, "FontBBox": [-168, -218, 1011, 920], "DefaultWidth": 250},
+    "helvetica": {"Flags": 32, "ItalicAngle": 0, "Ascent": 718, "Descent": -207, "CapHeight": 718, "StemV": 80, "FontBBox": [-166, -225, 1000, 931], "DefaultWidth": 278},
+    "helveticabold": {"Flags": 32, "ItalicAngle": 0, "Ascent": 718, "Descent": -207, "CapHeight": 718, "StemV": 130, "FontBBox": [-170, -228, 1003, 962], "DefaultWidth": 278},
+    "helveticaoblique": {"Flags": 96, "ItalicAngle": -12, "Ascent": 718, "Descent": -207, "CapHeight": 718, "StemV": 80, "FontBBox": [-170, -225, 1116, 931], "DefaultWidth": 278},
+    "helveticaboldoblique": {"Flags": 96, "ItalicAngle": -12, "Ascent": 718, "Descent": -207, "CapHeight": 718, "StemV": 130, "FontBBox": [-170, -228, 1114, 962], "DefaultWidth": 278},
+    "courier": {"Flags": 33, "ItalicAngle": 0, "Ascent": 629, "Descent": -157, "CapHeight": 562, "StemV": 80, "FontBBox": [-23, -250, 715, 805], "DefaultWidth": 600},
+    "courierbold": {"Flags": 33, "ItalicAngle": 0, "Ascent": 629, "Descent": -157, "CapHeight": 562, "StemV": 130, "FontBBox": [-113, -250, 749, 801], "DefaultWidth": 600},
+    "courieroblique": {"Flags": 97, "ItalicAngle": -12, "Ascent": 629, "Descent": -157, "CapHeight": 562, "StemV": 80, "FontBBox": [-27, -250, 849, 805], "DefaultWidth": 600},
+    "courierboldoblique": {"Flags": 97, "ItalicAngle": -12, "Ascent": 629, "Descent": -157, "CapHeight": 562, "StemV": 130, "FontBBox": [-57, -250, 869, 801], "DefaultWidth": 600},
+    "symbol": {"Flags": 4, "ItalicAngle": 0, "Ascent": 673, "Descent": -227, "CapHeight": 673, "StemV": 80, "FontBBox": [-180, -293, 1090, 1010], "DefaultWidth": 250},
+    "zapfdingbats": {"Flags": 4, "ItalicAngle": 0, "Ascent": 820, "Descent": -143, "CapHeight": 705, "StemV": 80, "FontBBox": [-1, -143, 981, 820], "DefaultWidth": 278},
 }
 # ──────────────────────────────────────────────────────────────────────────────
 # Shared pikepdf helpers (used across multiple font-repair functions)
@@ -2224,6 +2281,16 @@ def _system_font_program(font_name: str) -> tuple[bytes | None, str | None]:
         key=lambda item: _score_candidate(normalized, item[2], item[3], item[4], item[5]),
         reverse=True,
     )
+    if not candidates:
+        for alias in METRIC_COMPATIBLE_FONT_ALIASES.get(normalized, []):
+            alias_candidates = _system_font_index().get(alias, [])
+            if alias_candidates:
+                candidates = sorted(
+                    alias_candidates,
+                    key=lambda item: _score_candidate(alias, item[2], item[3], item[4], item[5]),
+                    reverse=True,
+                )
+                break
     for path_str, face_index, _, _, _, _ in candidates:
         path = Path(path_str)
         try:
@@ -2260,41 +2327,76 @@ def _system_font_program(font_name: str) -> tuple[bytes | None, str | None]:
 
 
 @lru_cache(maxsize=1)
-def _ghostscript_resource_font_dir() -> Path | None:
-    gs = resolve_binary("gs", explicit=get_settings().ghostscript_path)
-    if not gs:
-        return None
+def _ghostscript_resource_font_dirs() -> list[Path]:
+    dirs: list[Path] = []
+    for p in (
+        Path("/usr/share/fonts/type1/gsfonts"),
+        Path("/usr/share/fonts/type1/urw-base35"),
+        Path("/usr/share/fonts/type1"),
+        Path("/usr/share/ghostscript/fonts"),
+        Path("/var/lib/ghostscript/fonts"),
+        Path("/usr/share/fonts/X11/Type1"),
+    ):
+        if p.exists() and p.is_dir() and p not in dirs:
+            dirs.append(p)
 
-    gs_path = Path(gs).resolve()
-    candidate_suffixes = (
-        Path("share/ghostscript/Resource/Font"),
-        Path("Resource/Font"),
-    )
-    for parent in (gs_path.parent,) + tuple(gs_path.parents):
-        for suffix in candidate_suffixes:
-            candidate = parent / suffix
-            if candidate.exists():
-                return candidate
-    return None
+    gs = resolve_binary("gs", explicit=get_settings().ghostscript_path)
+    if gs:
+        gs_path = Path(gs).resolve()
+        candidate_suffixes = (
+            Path("share/ghostscript/Resource/Font"),
+            Path("Resource/Font"),
+            Path("share/ghostscript/fonts"),
+            Path("fonts"),
+        )
+        for parent in (gs_path.parent,) + tuple(gs_path.parents):
+            for suffix in candidate_suffixes:
+                candidate = parent / suffix
+                if candidate.exists() and candidate.is_dir() and candidate not in dirs:
+                    dirs.append(candidate)
+            gs_share = parent / "share" / "ghostscript"
+            if gs_share.exists() and gs_share.is_dir():
+                try:
+                    for child in sorted(gs_share.iterdir(), reverse=True):
+                        c1 = child / "Resource" / "Font"
+                        if c1.exists() and c1.is_dir() and c1 not in dirs:
+                            dirs.append(c1)
+                        c2 = child / "fonts"
+                        if c2.exists() and c2.is_dir() and c2 not in dirs:
+                            dirs.append(c2)
+                except Exception:
+                    pass
+    return dirs
+
+
+@lru_cache(maxsize=1)
+def _ghostscript_resource_font_dir() -> Path | None:
+    dirs = _ghostscript_resource_font_dirs()
+    return dirs[0] if dirs else None
 
 
 @lru_cache(maxsize=1)
 def _ghostscript_font_metrics_dir() -> Path | None:
-    gs = resolve_binary("gs", explicit=get_settings().ghostscript_path)
-    if not gs:
-        return None
+    dirs = _ghostscript_resource_font_dirs()
+    return dirs[0] if dirs else None
 
-    gs_path = Path(gs).resolve()
-    candidate_suffixes = (
-        Path("share/ghostscript/fonts"),
-        Path("fonts"),
-    )
-    for parent in (gs_path.parent,) + tuple(gs_path.parents):
-        for suffix in candidate_suffixes:
-            candidate = parent / suffix
-            if candidate.exists():
-                return candidate
-    return None
+
+def _read_type1_file_bytes(path: Path) -> bytes:
+    raw = path.read_bytes()
+    if len(raw) > 6 and raw[0] == 0x80 and raw[1] in (0x01, 0x02):
+        buf = bytearray()
+        pos = 0
+        while pos + 6 <= len(raw) and raw[pos] == 0x80:
+            rtype = raw[pos + 1]
+            if rtype == 0x03:
+                break
+            rlen = raw[pos + 2] | (raw[pos + 3] << 8) | (raw[pos + 4] << 16) | (raw[pos + 5] << 24)
+            pos += 6
+            buf.extend(raw[pos : pos + rlen])
+            pos += rlen
+        if buf:
+            return bytes(buf)
+    return raw
 
 
 @lru_cache(maxsize=64)
@@ -2308,19 +2410,41 @@ def _ghostscript_type1_font_program(
         return None, None, None
 
     resource_name = GHOSTSCRIPT_TYPE1_SUBSTITUTES.get(normalized)
-    if not resource_name:
+    spec = GHOSTSCRIPT_TYPE1_DESCRIPTOR_SPECS.get(normalized)
+    if not resource_name and not spec:
         return None, None, None
 
-    resource_dir = _ghostscript_resource_font_dir()
-    if resource_dir is None:
-        return None, None, None
+    candidate_names: list[str] = []
+    if resource_name:
+        candidate_names.extend([
+            resource_name,
+            f"{resource_name}.pfb",
+            f"{resource_name}.pfa",
+        ])
+    if spec and spec.get("afm"):
+        stem = str(spec["afm"]).rsplit(".", 1)[0]
+        candidate_names.extend([
+            f"{stem}.pfb",
+            f"{stem}.pfa",
+            stem,
+        ])
 
-    path = resource_dir / resource_name
-    if not path.exists():
+    font_dirs = _ghostscript_resource_font_dirs()
+    found_path: Path | None = None
+    for d in font_dirs:
+        for name in candidate_names:
+            p = d / name
+            if p.exists() and p.is_file():
+                found_path = p
+                break
+        if found_path is not None:
+            break
+
+    if found_path is None:
         return None, None, None
 
     try:
-        raw = path.read_bytes()
+        raw = _read_type1_file_bytes(found_path)
         chunks = t1Lib.findEncryptedChunks(raw)
     except Exception:
         return None, None, None
@@ -2337,7 +2461,7 @@ def _ghostscript_type1_font_program(
         "Length2": length2,
         "Length3": length3,
     }
-    return font_bytes, path.name, lengths
+    return font_bytes, found_path.name, lengths
 
 
 @lru_cache(maxsize=64)
@@ -2351,46 +2475,67 @@ def _ghostscript_type1_descriptor(
         return None
 
     spec = GHOSTSCRIPT_TYPE1_DESCRIPTOR_SPECS.get(normalized)
-    metrics_dir = _ghostscript_font_metrics_dir()
-    if spec is None or metrics_dir is None:
+    fallback = STANDARD14_METRIC_FALLBACKS.get(normalized)
+    if spec is None and fallback is None:
         return None
 
-    path = metrics_dir / spec["afm"]
-    if not path.exists():
-        return None
+    afm_path: Path | None = None
+    if spec and spec.get("afm"):
+        for d in _ghostscript_resource_font_dirs():
+            p = d / spec["afm"]
+            if p.exists() and p.is_file():
+                afm_path = p
+                break
 
-    try:
-        afm = afmLib.AFM(str(path))
-    except Exception:
-        return None
+    if afm_path is not None:
+        try:
+            afm = afmLib.AFM(str(afm_path))
+            attrs = afm._attrs
+            font_bbox = attrs.get("FontBBox")
+            if isinstance(font_bbox, tuple) and len(font_bbox) == 4:
+                widths_by_code = {
+                    _coerce_metric_int(charnum): _coerce_metric_int(width)
+                    for charnum, width, _ in afm._chars.values()
+                    if isinstance(_coerce_metric_int(charnum, -1), int)
+                    and 0 <= _coerce_metric_int(charnum, -1) <= 255
+                }
+                weight = str(attrs.get("Weight", "") or "").lower()
+                stem_v = 120 if any(token in weight for token in ("bold", "demi", "black")) else 80
+                flags = int(spec["flags"]) if spec else 32
+                return {
+                    "Flags": flags,
+                    "ItalicAngle": _coerce_metric_int(attrs.get("ItalicAngle", 0), 0),
+                    "Ascent": _coerce_metric_int(attrs.get("Ascender", 0), 0),
+                    "Descent": _coerce_metric_int(attrs.get("Descender", 0), 0),
+                    "CapHeight": _coerce_metric_int(attrs.get("CapHeight", attrs.get("Ascender", 0)), 0),
+                    "StemV": stem_v,
+                    "FontBBox": [_coerce_metric_int(value, 0) for value in font_bbox],
+                    "FirstChar": 0,
+                    "LastChar": 255,
+                    "Widths": [_coerce_metric_int(widths_by_code.get(code, 0), 0) for code in range(256)],
+                    "MissingWidth": _coerce_metric_int(widths_by_code.get(0, widths_by_code.get(32, 0)), 0),
+                }
+        except Exception:
+            pass
 
-    attrs = afm._attrs
-    font_bbox = attrs.get("FontBBox")
-    if not isinstance(font_bbox, tuple) or len(font_bbox) != 4:
-        return None
+    if fallback is not None:
+        default_width = int(fallback.get("DefaultWidth", 250))
+        flags = int(fallback.get("Flags", spec["flags"] if spec else 32))
+        return {
+            "Flags": flags,
+            "ItalicAngle": _coerce_metric_int(fallback.get("ItalicAngle", 0), 0),
+            "Ascent": _coerce_metric_int(fallback.get("Ascent", 700), 700),
+            "Descent": _coerce_metric_int(fallback.get("Descent", -200), -200),
+            "CapHeight": _coerce_metric_int(fallback.get("CapHeight", 700), 700),
+            "StemV": _coerce_metric_int(fallback.get("StemV", 80), 80),
+            "FontBBox": list(fallback.get("FontBBox", [-160, -220, 1000, 900])),
+            "FirstChar": 0,
+            "LastChar": 255,
+            "Widths": [default_width] * 256,
+            "MissingWidth": default_width,
+        }
 
-    widths_by_code = {
-        _coerce_metric_int(charnum): _coerce_metric_int(width)
-        for charnum, width, _ in afm._chars.values()
-        if isinstance(_coerce_metric_int(charnum, -1), int)
-        and 0 <= _coerce_metric_int(charnum, -1) <= 255
-    }
-    weight = str(attrs.get("Weight", "") or "").lower()
-    stem_v = 120 if any(token in weight for token in ("bold", "demi", "black")) else 80
-    descriptor = {
-        "Flags": int(spec["flags"]),
-        "ItalicAngle": _coerce_metric_int(attrs.get("ItalicAngle", 0), 0),
-        "Ascent": _coerce_metric_int(attrs.get("Ascender", 0), 0),
-        "Descent": _coerce_metric_int(attrs.get("Descender", 0), 0),
-        "CapHeight": _coerce_metric_int(attrs.get("CapHeight", attrs.get("Ascender", 0)), 0),
-        "StemV": stem_v,
-        "FontBBox": [_coerce_metric_int(value, 0) for value in font_bbox],
-        "FirstChar": 0,
-        "LastChar": 255,
-        "Widths": [_coerce_metric_int(widths_by_code.get(code, 0), 0) for code in range(256)],
-        "MissingWidth": _coerce_metric_int(widths_by_code.get(0, widths_by_code.get(32, 0)), 0),
-    }
-    return descriptor
+    return None
 
 
 def _local_font_program(
@@ -5146,19 +5291,80 @@ async def run_pipeline(
                 result={"type": classification.type},
             )
 
-            # ── Step 2: OCR (conditional) ──
+            # ── Step 2: OCR (selective & verified) ──
             current_step = "ocr"
             working_pdf = input_path
 
-            if classification.type in ("scanned", "mixed"):
+            pages_needing_ocr = getattr(classification, "pages_needing_ocr", [])
+            total_pages = classification.total_pages
+            if not pages_needing_ocr and classification.type in ("scanned", "mixed"):
+                pages_needing_ocr = list(range(1, total_pages + 1))
+
+            if not pages_needing_ocr or classification.type == "ocr_scan":
+                # Intentionally unnecessary: reliable digital text or existing complete OCR layer
+                is_ocr_scan = classification.type == "ocr_scan"
+                reason = (
+                    "OCR was intentionally unnecessary because this scan already has a valid OCR text layer."
+                    if is_ocr_scan
+                    else "OCR was intentionally unnecessary because reliable text was already available."
+                )
+                ocr_payload = {
+                    "outcome": "skipped",
+                    "status": "skipped",
+                    "reason": reason,
+                    "pages_processed": [],
+                    "pages_skipped": list(range(1, total_pages + 1)),
+                    "pages_failed": [],
+                    "engine_error": None,
+                }
+                await _update_step(db, job_id, "ocr", "skipped", result=ocr_payload)
+                job_manager.emit_progress(
+                    job_id,
+                    step="ocr",
+                    status="skipped",
+                    message=reason,
+                    result=ocr_payload,
+                )
+            else:
+                # OCR is required on specific pages or full document
                 await _update_step(db, job_id, "ocr", "running")
-                job_manager.emit_progress(job_id, step="ocr", status="running")
+                job_manager.emit_progress(
+                    job_id,
+                    step="ocr",
+                    status="running",
+                    message=f"Verifying OCR engine and processing {len(pages_needing_ocr)} page(s)...",
+                )
+
+                ocr_lang = job.ocr_language or settings.ocr_language
+                engine_ok, engine_err = verify_ocr_engine(ocr_lang)
+                if not engine_ok:
+                    ocr_payload = {
+                        "outcome": "failed",
+                        "status": "failed",
+                        "reason": f"OCR was required for {len(pages_needing_ocr)} page(s) but the OCR engine is unavailable: {engine_err}",
+                        "pages_processed": [],
+                        "pages_skipped": [p for p in range(1, total_pages + 1) if p not in pages_needing_ocr],
+                        "pages_failed": pages_needing_ocr,
+                        "engine_error": engine_err,
+                    }
+                    await _update_step(db, job_id, "ocr", "failed", error=engine_err, result=ocr_payload)
+                    job_manager.emit_progress(
+                        job_id,
+                        step="ocr",
+                        status="failed",
+                        message=engine_err,
+                        result=ocr_payload,
+                    )
+                    raise RuntimeError(f"OCR required but engine unavailable: {engine_err}")
 
                 ocr_output = job_dir / "ocred.pdf"
+                target_pages = None if len(pages_needing_ocr) == total_pages else pages_needing_ocr
+
                 ocr_result = await run_ocr(
                     input_path,
                     ocr_output,
-                    job.ocr_language or settings.ocr_language,
+                    language=ocr_lang,
+                    pages=target_pages,
                     rotate_pages=settings.ocr_rotate_pages,
                     deskew=settings.ocr_deskew,
                     timeout_seconds=settings.subprocess_timeout_ocr,
@@ -5166,50 +5372,70 @@ async def run_pipeline(
 
                 if ocr_result.success:
                     working_pdf = ocr_result.output_path
+                    if ocr_result.skipped:
+                        outcome = "skipped"
+                        reason = "OCR was skipped because reliable text was already available on all requested pages."
+                        processed = []
+                        skipped = list(range(1, total_pages + 1))
+                        failed = []
+                    elif target_pages and len(target_pages) < total_pages:
+                        outcome = "completed"
+                        reason = f"Selective OCR ran on page(s) {', '.join(str(p) for p in target_pages)}; reliable text preserved on other pages."
+                        processed = target_pages
+                        skipped = [p for p in range(1, total_pages + 1) if p not in target_pages]
+                        failed = []
+                    else:
+                        outcome = "completed"
+                        reason = f"OCR completed successfully on all {len(pages_needing_ocr)} requested page(s)."
+                        processed = pages_needing_ocr
+                        skipped = [p for p in range(1, total_pages + 1) if p not in pages_needing_ocr]
+                        failed = []
+
+                    ocr_payload = {
+                        "outcome": outcome,
+                        "status": "complete" if outcome in ("completed", "partially_completed") else "skipped",
+                        "reason": reason,
+                        "pages_processed": processed,
+                        "pages_skipped": skipped,
+                        "pages_failed": failed,
+                        "engine_error": None,
+                    }
+                    step_status = "complete" if outcome in ("completed", "partially_completed") else "skipped"
                     await _update_step(
                         db,
                         job_id,
                         "ocr",
-                        "complete",
-                        result={
-                            "skipped": ocr_result.skipped,
-                            "message": ocr_result.message,
-                        },
+                        step_status,
+                        result=ocr_payload,
                     )
-                    job_manager.emit_progress(job_id, step="ocr", status="complete")
+                    job_manager.emit_progress(
+                        job_id,
+                        step="ocr",
+                        status=step_status,
+                        message=reason,
+                        result=ocr_payload,
+                    )
                 else:
-                    await _update_step(db, job_id, "ocr", "failed", error=ocr_result.message)
+                    ocr_payload = {
+                        "outcome": "failed",
+                        "status": "failed",
+                        "reason": f"OCR failed during execution: {ocr_result.message}",
+                        "pages_processed": [],
+                        "pages_skipped": [p for p in range(1, total_pages + 1) if p not in pages_needing_ocr],
+                        "pages_failed": pages_needing_ocr,
+                        "engine_error": ocr_result.engine_error or ocr_result.message,
+                    }
+                    await _update_step(db, job_id, "ocr", "failed", error=ocr_result.message, result=ocr_payload)
                     job_manager.emit_progress(
                         job_id,
                         step="ocr",
                         status="failed",
                         message=ocr_result.message,
+                        result=ocr_payload,
                     )
                     raise RuntimeError(
                         f"OCR failed for {classification.type} document: {ocr_result.message}"
                     )
-            elif classification.type == "ocr_scan":
-                await _update_step(
-                    db,
-                    job_id,
-                    "ocr",
-                    "skipped",
-                    result={
-                        "skipped": True,
-                        "message": (
-                            "Skipped OCR because this scan already has an OCR text layer."
-                        ),
-                    },
-                )
-                job_manager.emit_progress(
-                    job_id,
-                    step="ocr",
-                    status="skipped",
-                    result={"reason": "existing_ocr_text_layer"},
-                )
-            else:
-                await _update_step(db, job_id, "ocr", "skipped")
-                job_manager.emit_progress(job_id, step="ocr", status="skipped")
 
             # ── Step 3: Structure Extraction ──
             current_step = "structure"
@@ -5547,7 +5773,8 @@ async def run_pipeline(
                         elif not generated_text or (
                             generated_text.startswith("[") and generated_text.endswith("]")
                         ):
-                            status = "approved"
+                            status = "pending_review"
+                            generated_text = ""
                         else:
                             status = "approved"
 
@@ -5702,14 +5929,14 @@ async def run_tagging_and_validation(
 
         output_path = get_output_path(job_id, f"accessible_{job.original_filename}")
 
-        # Gather approved alt texts
+        # Gather all alt entries (for fidelity auditing) and approved ones (for tagging)
         result = await db.execute(
             select(AltTextEntry).where(
                 AltTextEntry.job_id == job_id,
-                AltTextEntry.status.in_(("approved", "rejected")),
             )
         )
-        reviewed_alt_entries = result.scalars().all()
+        all_alt_entries = result.scalars().all()
+        reviewed_alt_entries = [a for a in all_alt_entries if a.status in ("approved", "rejected")]
         reviewed_alts = [
             {
                 "figure_index": a.figure_index,
@@ -6328,7 +6555,7 @@ async def run_tagging_and_validation(
                         "edited_text": entry.edited_text,
                         "status": entry.status,
                     }
-                    for entry in reviewed_alt_entries
+                    for entry in all_alt_entries
                 ],
                 validation_report=candidate_validation_payload,
                 raw_validation_report=candidate_validation.raw_report,
@@ -6366,7 +6593,7 @@ async def run_tagging_and_validation(
                     "edited_text": entry.edited_text,
                     "status": entry.status,
                 }
-                for entry in reviewed_alt_entries
+                for entry in all_alt_entries
             ],
             validation_report=validation_payload,
             raw_validation_report=selected_validation.raw_report,
