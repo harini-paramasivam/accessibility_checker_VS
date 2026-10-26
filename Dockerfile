@@ -15,7 +15,7 @@ FROM python:3.12-slim-bookworm
 
 # Set to "true" to include local Docling (adds ~2 GB for torch + models).
 # Not needed when DOCLING_SERVE_URL points to a remote docling-serve instance.
-ARG WITH_LOCAL_DOCLING=false
+ARG WITH_LOCAL_DOCLING=true
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
